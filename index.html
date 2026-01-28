@@ -44,8 +44,34 @@
                 </div>
 
                 <div class="form-group">
+                    <label for="expertName">Expert Name</label>
+                    <input type="text" id="expertName" placeholder="Enter expert/engineer name">
+                </div>
+
+                <div class="form-group">
                     <label for="machineName">Machine Name</label>
                     <input type="text" id="machineName" placeholder="Enter CNC machine name/model">
+                </div>
+
+                <div class="form-group">
+                    <label for="machineLabelPhoto">Machine Label Photo</label>
+                    <input type="file" id="machineLabelPhoto" accept="image/*" style="display: none;">
+                    <button type="button" id="uploadMachineLabelBtn" class="btn-outline" style="width: 100%; margin-top: 0;">
+                        📷 Upload Machine Label & Extract Data
+                    </button>
+                    <div id="machineLabelPreviewContainer" style="display: none; margin-top: 8px;">
+                        <div id="machineLabelPreview" style="max-width: 100%; max-height: 200px; overflow: hidden; border: 2px solid var(--border-color); border-radius: 6px;">
+                            <img id="machineLabelPreviewImg" style="max-width: 100%; display: block;">
+                        </div>
+                        <div style="margin-top: 6px;">
+                            <button type="button" id="removeMachineLabelBtn" class="btn-outline" style="width: 100%; margin: 0; padding: 8px; font-size: 0.85rem;">🗑️ Remove</button>
+                        </div>
+                        <div id="ocrStatus" style="margin-top: 6px; font-size: 0.75rem; color: var(--text-secondary);"></div>
+                        <div id="extractedData" style="margin-top: 8px; padding: 8px; background: #f0f9ff; border-radius: 4px; font-size: 0.85rem; display: none;">
+                            <strong>Extracted Data:</strong>
+                            <div id="extractedDataContent"></div>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="form-group">
@@ -70,6 +96,79 @@
                 <div class="form-group">
                     <label for="batchSize">Batch/Lot Size</label>
                     <input type="number" id="batchSize" min="1" value="1" step="1" placeholder="Number of parts in batch">
+                </div>
+
+                <div class="form-group">
+                    <label for="theoreticalPartWorktime">Theoretical Part Worktime (min)</label>
+                    <input type="number" id="theoreticalPartWorktime" min="0.1" max="1000" value="" step="0.1" placeholder="Theoretical worktime per part">
+                </div>
+
+                <div class="form-group">
+                    <label for="machineWorkhourCost">Machine Workhour Cost (€/hour)</label>
+                    <input type="number" id="machineWorkhourCost" min="1" max="500" value="50" step="1">
+                </div>
+
+                <div class="form-group">
+                    <label for="machineStopCost">Machine Stop/Downtime Cost (€/hour)</label>
+                    <input type="number" id="machineStopCost" min="0" max="500" value="50" step="1">
+                </div>
+            </div>
+
+            <!-- Production & Cost Parameters Section -->
+            <div class="card client-section">
+                <h2>Production & Cost Parameters</h2>
+                
+                <div class="form-group">
+                    <label for="partsPerBatch">Parts per Batch</label>
+                    <input type="number" id="partsPerBatch" min="1" value="100" step="1">
+                </div>
+
+                <div class="form-group">
+                    <label for="partsPerYear">Parts per Year</label>
+                    <input type="number" id="partsPerYear" min="1" value="4000" step="1">
+                </div>
+
+                <div class="form-group">
+                    <label for="annualSolutions">Annual Solutions</label>
+                    <input type="number" id="annualSolutions" min="1" value="6" step="1">
+                </div>
+
+                <div class="form-group">
+                    <label for="machineCostPerHour">Machine Cost per Hour (€/hour)</label>
+                    <input type="number" id="machineCostPerHour" min="1" max="500" value="50" step="1">
+                </div>
+
+                <div class="form-group">
+                    <label for="costOfToolChange">Cost of Tool Change (€)</label>
+                    <input type="number" id="costOfToolChange" min="0" max="1000" value="5" step="0.1">
+                </div>
+
+                <div class="form-group">
+                    <label for="timeLossPerToolChange">Time Loss per Tool Change (min)</label>
+                    <input type="number" id="timeLossPerToolChange" min="0" max="60" value="5" step="0.1">
+                </div>
+
+                <div class="form-group">
+                    <label for="machineStopDowntimeCost">Machine Stop/Downtime Cost (€/hour)</label>
+                    <input type="number" id="machineStopDowntimeCost" min="0" max="500" value="50" step="1">
+                </div>
+
+                <div class="form-group">
+                    <label for="defectsRate">Defects Rate (%)</label>
+                    <input type="number" id="defectsRate" min="0" max="100" value="2" step="0.1">
+                    <small>Percentage of parts that are defective</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="plannedProductionTime">Planned Production Time (hours/shift)</label>
+                    <input type="number" id="plannedProductionTime" min="1" max="24" value="8" step="0.5">
+                    <small>Total planned production time per shift</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="unplannedDowntime">Unplanned Downtime (hours/shift)</label>
+                    <input type="number" id="unplannedDowntime" min="0" max="24" value="0.5" step="0.1">
+                    <small>Breakdowns, maintenance, other unplanned stops</small>
                 </div>
             </div>
 
@@ -261,6 +360,21 @@
                 </div>
 
                 <div class="form-group">
+                    <label for="cuttingFluid">Cutting Fluid</label>
+                    <select id="cuttingFluid">
+                        <option value="none">None (Dry)</option>
+                        <option value="flood">Flood Coolant</option>
+                        <option value="mist">Mist Coolant</option>
+                        <option value="mql">MQL (Minimum Quantity Lubrication)</option>
+                        <option value="emulsion">Emulsion</option>
+                        <option value="synthetic">Synthetic Coolant</option>
+                        <option value="semiSynthetic">Semi-Synthetic Coolant</option>
+                        <option value="straightOil">Straight Oil</option>
+                        <option value="waterSoluble">Water-Soluble Oil</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
                     <label for="cuttingSpeed">Cutting Speed, V<sub>c</sub> (m/min)</label>
                     <input type="number" id="cuttingSpeed" min="1" max="1000" value="100" step="1">
                     <small>Surface cutting speed (V<sub>c</sub> = π × D × n / 1000)</small>
@@ -355,8 +469,14 @@
                 </div>
 
                 <button id="calculateBtn" class="btn-primary">Calculate</button>
-                <button id="compareBtn" class="btn-secondary">Compare Tools</button>
-                <button id="generateReportBtn" class="btn-secondary" style="margin-top: 6px; padding: 8px; font-size: 0.85rem;">📄 Generate Report</button>
+                <div style="margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center;">
+                    <button id="compareBtn" class="btn-secondary" title="Add current tool to comparison (keeps form data)">➕ Add to Comparison</button>
+                    <button id="saveAndClearBtn" class="btn-secondary" title="Save current tool to comparison and clear form for new tool">💾 Save & Clear Form</button>
+                    <button id="generateReportBtn" class="btn-secondary" style="padding: 8px; font-size: 0.85rem;" title="Generate comprehensive report">📄 Generate Report</button>
+                </div>
+                <div style="margin-top: 6px; padding: 8px; background: #f0f9ff; border-left: 3px solid #2563eb; border-radius: 4px; font-size: 0.8rem; color: #1e40af;">
+                    <strong>💡 Tip:</strong> After calculating, use "Add to Comparison" to keep current tool and compare, or "Save & Clear Form" to save and start fresh with a new tool.
+                </div>
             </div>
 
             <!-- Results Section -->
@@ -494,6 +614,8 @@
         </footer>
     </div>
 
+    <!-- Tesseract.js for OCR -->
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <script src="calculator.js"></script>
 </body>
 </html>

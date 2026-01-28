@@ -36,6 +36,8 @@ body {
     flex: 1;
     display: flex;
     flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
 }
 
 header {
@@ -66,11 +68,14 @@ header h1 {
 
 .calculator-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr));
+    grid-template-columns: 1fr;
     gap: 8px;
     margin-bottom: 8px;
     flex: 1;
     align-content: start;
+    grid-auto-rows: min-content;
+    width: 100%;
+    grid-auto-flow: row dense;
 }
 
 .card {
@@ -83,6 +88,9 @@ header h1 {
     flex-direction: column;
     min-height: 0;
     height: fit-content;
+    width: 100%;
+    max-width: 100%;
+    overflow: hidden;
 }
 
 .card:hover {
@@ -98,6 +106,92 @@ header h1 {
 .card.results-section {
     min-height: fit-content;
     max-height: none;
+}
+
+.card.comparison-section {
+    width: 100%;
+    grid-column: 1 / -1;
+}
+
+/* Responsive card layout - optimized for better screen utilization */
+@media (min-width: 600px) {
+    .calculator-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .card.client-section {
+        grid-column: span 1;
+    }
+    
+    .card.input-section {
+        grid-column: span 1;
+    }
+    
+    .card.results-section {
+        grid-column: span 2;
+    }
+}
+
+@media (min-width: 900px) {
+    .calculator-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+    
+    .card.client-section {
+        grid-column: span 1;
+    }
+    
+    .card.input-section {
+        grid-column: span 2;
+    }
+    
+    .card.results-section {
+        grid-column: span 3;
+    }
+}
+
+@media (min-width: 1200px) {
+    .calculator-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+    
+    .card.client-section {
+        grid-column: span 1;
+    }
+    
+    .card.input-section {
+        grid-column: span 2;
+    }
+    
+    .card.results-section {
+        grid-column: span 3;
+    }
+    
+    .card.comparison-section {
+        grid-column: 1 / -1;
+    }
+}
+
+@media (min-width: 1600px) {
+    .calculator-grid {
+        grid-template-columns: repeat(5, 1fr);
+    }
+    
+    .card.client-section {
+        grid-column: span 1;
+    }
+    
+    .card.input-section {
+        grid-column: span 2;
+    }
+    
+    .card.results-section {
+        grid-column: span 4;
+    }
+    
+    .card.comparison-section {
+        grid-column: 1 / -1;
+    }
 }
 
 .card h2 {
@@ -1009,12 +1103,24 @@ footer img:hover {
         gap: 6px;
     }
     
+    .card.client-section,
+    .card.input-section,
+    .card.results-section {
+        grid-column: span 1;
+    }
+    
+    .card.comparison-section {
+        grid-column: 1;
+    }
+    
     header h1 {
         font-size: 1.3rem;
     }
     
     .card {
         padding: 10px;
+        width: 100%;
+        max-width: 100%;
     }
     
     body {
