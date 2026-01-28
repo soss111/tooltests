@@ -2065,6 +2065,96 @@ function closeReportModal() {
     document.getElementById('reportStatus').innerHTML = '';
 }
 
+// Get chart image as data URL
+function getChartImage(chartInstance) {
+    if (!chartInstance) return null;
+    try {
+        return chartInstance.toBase64Image('image/png', 1.0);
+    } catch (error) {
+        console.error('Error getting chart image:', error);
+        return null;
+    }
+}
+
+// Get HTML for main charts (tool life and cost savings)
+function getChartImagesHTML() {
+    let html = '';
+    
+    // Tool Life Chart
+    if (toolLifeChartInstance) {
+        const chartImage = getChartImage(toolLifeChartInstance);
+        if (chartImage) {
+            html += `
+                <div style="margin: 15px 0;">
+                    <h3>Tool Life Visualization</h3>
+                    <img src="${chartImage}" alt="Tool Life Chart" style="max-width: 100%; height: auto; border: 1px solid #e2e8f0; border-radius: 8px;">
+                </div>
+            `;
+        }
+    }
+    
+    // Cost Savings Chart
+    if (costSavingsChartInstance) {
+        const chartImage = getChartImage(costSavingsChartInstance);
+        if (chartImage) {
+            html += `
+                <div style="margin: 15px 0;">
+                    <h3>Cost Breakdown</h3>
+                    <img src="${chartImage}" alt="Cost Savings Chart" style="max-width: 100%; height: auto; border: 1px solid #e2e8f0; border-radius: 8px;">
+                </div>
+            `;
+        }
+    }
+    
+    return html || '<p style="color: #64748b; font-style: italic;">Charts will be available after calculation.</p>';
+}
+
+// Get HTML for comparison charts
+function getComparisonChartImagesHTML() {
+    let html = '';
+    
+    // Tool Life Comparison Chart
+    if (comparisonToolLifeChartInstance) {
+        const chartImage = getChartImage(comparisonToolLifeChartInstance);
+        if (chartImage) {
+            html += `
+                <div style="margin: 15px 0;">
+                    <h3>Tool Life Comparison</h3>
+                    <img src="${chartImage}" alt="Tool Life Comparison Chart" style="max-width: 100%; height: auto; border: 1px solid #e2e8f0; border-radius: 8px;">
+                </div>
+            `;
+        }
+    }
+    
+    // Cost Comparison Chart
+    if (comparisonCostChartInstance) {
+        const chartImage = getChartImage(comparisonCostChartInstance);
+        if (chartImage) {
+            html += `
+                <div style="margin: 15px 0;">
+                    <h3>Cost per Part Comparison</h3>
+                    <img src="${chartImage}" alt="Cost Comparison Chart" style="max-width: 100%; height: auto; border: 1px solid #e2e8f0; border-radius: 8px;">
+                </div>
+            `;
+        }
+    }
+    
+    // Efficiency Metrics Chart
+    if (comparisonEfficiencyChartInstance) {
+        const chartImage = getChartImage(comparisonEfficiencyChartInstance);
+        if (chartImage) {
+            html += `
+                <div style="margin: 15px 0;">
+                    <h3>Efficiency Metrics</h3>
+                    <img src="${chartImage}" alt="Efficiency Metrics Chart" style="max-width: 100%; height: auto; border: 1px solid #e2e8f0; border-radius: 8px;">
+                </div>
+            `;
+        }
+    }
+    
+    return html || '<p style="color: #64748b; font-style: italic;">Comparison charts will be available when comparing tools.</p>';
+}
+
 function generateReportHTML() {
     const params = getInputValues();
     const toolLife = params.toolLife || calculateToolLife(params);
@@ -2114,6 +2204,7 @@ function generateReportHTML() {
                 .footer { margin-top: 40px; padding-top: 20px; border-top: 2px solid #e2e8f0; font-size: 0.9em; color: #64748b; }
                 .photo-info { margin: 10px 0; }
                 .photo-info img { max-width: 300px; max-height: 300px; border-radius: 8px; border: 2px solid #e2e8f0; }
+                .chart-image { max-width: 100%; height: auto; border: 1px solid #e2e8f0; border-radius: 8px; margin: 10px 0; }
             </style>
         </head>
         <body>
@@ -2255,6 +2346,13 @@ function generateReportHTML() {
             </div>
             ` : ''}
             
+            ${includeCharts ? `
+            <div class="section">
+                <h2>📊 Charts & Visualizations</h2>
+                ${getChartImagesHTML()}
+            </div>
+            ` : ''}
+            
             <div class="section">
                 <h2>Engineering Formulas Used</h2>
                 <div class="formula">n = (V<sub>c</sub> × 1000) / (π × D)</div>
@@ -2349,6 +2447,15 @@ function generateReportHTML() {
                     </table>
                 </div>
             `;
+            
+            if (includeCharts) {
+                html += `
+                    <div class="section">
+                        <h2>📊 Comparison Charts</h2>
+                        ${getComparisonChartImagesHTML()}
+                    </div>
+                `;
+            }
         }
     }
     
@@ -2812,6 +2919,46 @@ async function downloadReportPDF() {
         doc.text(`Taylor's Constant (C): ${formatNumber(taylorConstant, '')}`, margin + 5, yPos); yPos += lineHeight;
         doc.text(`Taylor Exponent (n): 0.2`, margin + 5, yPos); yPos += 5;
         
+        // Add charts to PDF if available
+        const includeCharts = document.getElementById('includeCharts')?.checked;
+        if (includeCharts) {
+            // Tool Life Chart
+            if (toolLifeChartInstance) {
+                try {
+                    const chartImage = getChartImage(toolLifeChartInstance);
+                    if (chartImage) {
+                        checkNewPage(60);
+                        doc.setFontSize(12);
+                        doc.setTextColor(30, 41, 59);
+                        doc.text('Tool Life Chart', margin, yPos);
+                        yPos += 8;
+                        doc.addImage(chartImage, 'PNG', margin, yPos, 170, 80);
+                        yPos += 85;
+                    }
+                } catch (error) {
+                    console.error('Error adding tool life chart to PDF:', error);
+                }
+            }
+            
+            // Cost Savings Chart
+            if (costSavingsChartInstance) {
+                try {
+                    const chartImage = getChartImage(costSavingsChartInstance);
+                    if (chartImage) {
+                        checkNewPage(60);
+                        doc.setFontSize(12);
+                        doc.setTextColor(30, 41, 59);
+                        doc.text('Cost Breakdown Chart', margin, yPos);
+                        yPos += 8;
+                        doc.addImage(chartImage, 'PNG', margin, yPos, 170, 80);
+                        yPos += 85;
+                    }
+                } catch (error) {
+                    console.error('Error adding cost chart to PDF:', error);
+                }
+            }
+        }
+        
         // Tool Comparison
         if (toolComparisons.length > 0) {
             checkNewPage(25);
@@ -2845,6 +2992,64 @@ async function downloadReportPDF() {
                 doc.text(`Best Tool: ${bestTool.name} (${formatCurrency(bestTool.totalCostPerPart)}/part)`, margin + 5, yPos); yPos += lineHeight;
                 doc.text(`Savings per Part: ${formatCurrency(costDifference)} (${costSavingsPercent}%)`, margin + 5, yPos); yPos += lineHeight;
                 if (batchSize > 1) { doc.text(`Savings per Batch: ${formatCurrency(savingsPerBatch)}`, margin + 5, yPos); yPos += lineHeight; }
+                
+                // Add comparison charts to PDF
+                const includeCharts = document.getElementById('includeCharts')?.checked;
+                if (includeCharts) {
+                    // Tool Life Comparison Chart
+                    if (comparisonToolLifeChartInstance) {
+                        try {
+                            const chartImage = getChartImage(comparisonToolLifeChartInstance);
+                            if (chartImage) {
+                                checkNewPage(60);
+                                doc.setFontSize(12);
+                                doc.setTextColor(30, 41, 59);
+                                doc.text('Tool Life Comparison', margin, yPos);
+                                yPos += 8;
+                                doc.addImage(chartImage, 'PNG', margin, yPos, 170, 80);
+                                yPos += 85;
+                            }
+                        } catch (error) {
+                            console.error('Error adding comparison tool life chart to PDF:', error);
+                        }
+                    }
+                    
+                    // Cost Comparison Chart
+                    if (comparisonCostChartInstance) {
+                        try {
+                            const chartImage = getChartImage(comparisonCostChartInstance);
+                            if (chartImage) {
+                                checkNewPage(60);
+                                doc.setFontSize(12);
+                                doc.setTextColor(30, 41, 59);
+                                doc.text('Cost Comparison', margin, yPos);
+                                yPos += 8;
+                                doc.addImage(chartImage, 'PNG', margin, yPos, 170, 80);
+                                yPos += 85;
+                            }
+                        } catch (error) {
+                            console.error('Error adding cost comparison chart to PDF:', error);
+                        }
+                    }
+                    
+                    // Efficiency Chart
+                    if (comparisonEfficiencyChartInstance) {
+                        try {
+                            const chartImage = getChartImage(comparisonEfficiencyChartInstance);
+                            if (chartImage) {
+                                checkNewPage(60);
+                                doc.setFontSize(12);
+                                doc.setTextColor(30, 41, 59);
+                                doc.text('Efficiency Metrics', margin, yPos);
+                                yPos += 8;
+                                doc.addImage(chartImage, 'PNG', margin, yPos, 170, 80);
+                                yPos += 85;
+                            }
+                        } catch (error) {
+                            console.error('Error adding efficiency chart to PDF:', error);
+                        }
+                    }
+                }
             }
         }
         
