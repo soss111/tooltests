@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CNC Tool Selection Calculator</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🔧 CNC Tool Selection Calculator</h1>
+            <p class="subtitle">Choose the right and most cost-effective tool for your CNC machine</p>
+            <p class="iso-reference">Based on ISO 8688-2:1989 principles</p>
+        </header>
+
+        <div class="calculator-grid">
+            <!-- Input Section -->
+            <div class="card input-section">
+                <h2>Tool & Material Parameters</h2>
+                
+                <div class="form-group">
+                    <label for="workpieceMaterial">Workpiece Material</label>
+                    <select id="workpieceMaterial">
+                        <option value="steel">Steel</option>
+                        <option value="castIron">Cast Iron</option>
+                        <option value="aluminum">Aluminum</option>
+                        <option value="stainlessSteel">Stainless Steel</option>
+                        <option value="titanium">Titanium</option>
+                        <option value="brass">Brass</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="toolDiameter">Tool Diameter (mm)</label>
+                    <input type="number" id="toolDiameter" min="1" max="100" value="10" step="0.1">
+                </div>
+
+                <div class="form-group">
+                    <label for="toolMaterial">Tool Material</label>
+                    <select id="toolMaterial">
+                        <option value="hss">High-Speed Steel (HSS)</option>
+                        <option value="carbide">Cemented Carbide</option>
+                        <option value="coatedCarbide">Coated Carbide</option>
+                        <option value="ceramic">Ceramic</option>
+                        <option value="diamond">Diamond</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="toolCoating">Tool Coating</label>
+                    <select id="toolCoating">
+                        <option value="none">None</option>
+                        <option value="tin">TiN (Titanium Nitride)</option>
+                        <option value="ticn">TiCN (Titanium Carbonitride)</option>
+                        <option value="alcrn">AlCrN (Aluminum Chromium Nitride)</option>
+                        <option value="diamond">Diamond Coating</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="cuttingSpeed">Cutting Speed (m/min)</label>
+                    <input type="number" id="cuttingSpeed" min="1" max="1000" value="100" step="1">
+                </div>
+
+                <div class="form-group">
+                    <label for="feedRate">Feed Rate (mm/tooth)</label>
+                    <input type="number" id="feedRate" min="0.01" max="5" value="0.1" step="0.01">
+                </div>
+
+                <div class="form-group">
+                    <label for="depthOfCut">Depth of Cut (mm)</label>
+                    <input type="number" id="depthOfCut" min="0.1" max="50" value="2" step="0.1">
+                </div>
+
+                <div class="form-group">
+                    <label for="widthOfCut">Width of Cut (mm)</label>
+                    <input type="number" id="widthOfCut" min="0.1" max="100" value="5" step="0.1">
+                </div>
+
+                <div class="form-group">
+                    <label for="numberOfTeeth">Number of Teeth/Flutes</label>
+                    <input type="number" id="numberOfTeeth" min="1" max="20" value="4" step="1">
+                </div>
+
+                <div class="form-group">
+                    <label for="toolCost">Tool Cost (€)</label>
+                    <input type="number" id="toolCost" min="1" max="10000" value="50" step="1">
+                </div>
+
+                <div class="form-group">
+                    <label for="machiningTime">Expected Machining Time per Part (min)</label>
+                    <input type="number" id="machiningTime" min="0.1" max="1000" value="10" step="0.1">
+                </div>
+
+                <div class="form-group">
+                    <label for="machineHourlyRate">Machine Hourly Rate (€/hour)</label>
+                    <input type="number" id="machineHourlyRate" min="1" max="500" value="50" step="1">
+                </div>
+
+                <div class="form-group">
+                    <label for="toolLife">Tool Life (minutes)</label>
+                    <input type="number" id="toolLife" min="1" max="10000" value="60" step="1">
+                    <small>Leave empty to calculate based on ISO 8688-2</small>
+                </div>
+
+                <button id="calculateBtn" class="btn-primary">Calculate Cost-Effectiveness</button>
+                <button id="compareBtn" class="btn-secondary">Compare Tools</button>
+            </div>
+
+            <!-- Results Section -->
+            <div class="card results-section">
+                <h2>Results & Recommendations</h2>
+                
+                <div id="results" class="results-container">
+                    <div class="result-placeholder">
+                        <p>Enter parameters and click "Calculate" to see results</p>
+                    </div>
+                </div>
+
+                <div id="recommendations" class="recommendations-container" style="display: none;">
+                    <h3>💡 Recommendations</h3>
+                    <div id="recommendationsContent"></div>
+                </div>
+            </div>
+
+            <!-- Comparison Section -->
+            <div class="card comparison-section" id="comparisonSection" style="display: none;">
+                <h2>Tool Comparison</h2>
+                <div id="comparisonResults"></div>
+                <button id="addToolBtn" class="btn-secondary">Add Another Tool</button>
+                <button id="clearComparisonBtn" class="btn-outline">Clear Comparison</button>
+            </div>
+        </div>
+
+        <footer>
+            <p>Based on ISO 8688-2:1989 - Tool life testing in milling Part 2: End milling</p>
+        </footer>
+    </div>
+
+    <script src="calculator.js"></script>
+</body>
+</html>
