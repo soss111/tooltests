@@ -2071,9 +2071,26 @@ function generateReportHTML() {
     const costResults = calculateCostPerPart({ ...params, toolLife });
     const mrr = calculateMRR(params);
     const spindleSpeed = calculateSpindleSpeed(params.cuttingSpeed, params.toolDiameter);
+    const feedPerRev = calculateFeedPerRevolution(params.feedRate, params.numberOfTeeth);
+    const feedRateMM = calculateFeedRate(params.feedRate, params.numberOfTeeth, spindleSpeed);
+    const chipThickness = calculateChipThickness(params.feedRate, params.depthOfCut, params.toolDiameter);
+    const materialHardness = params.materialHardness || 30;
+    const specificCuttingForce = calculateSpecificCuttingForce(params.workpieceMaterial, materialHardness);
+    const cuttingForce = calculateCuttingForce(specificCuttingForce, params.depthOfCut, params.widthOfCut, params.feedRate);
+    const powerRequired = calculatePowerRequirement(cuttingForce, params.cuttingSpeed);
+    const torque = calculateTorque(powerRequired, spindleSpeed);
+    const surfaceFinish = calculateSurfaceFinish(params.feedRate, params.toolDiameter, params.numberOfTeeth);
+    const taylorConstant = calculateTaylorConstant(params.cuttingSpeed, toolLife);
+    const mrrPerPower = calculateMRRPerPower(mrr, powerRequired);
+    const recommendations = getRecommendations(params, costResults);
     
     const includeCharts = document.getElementById('includeCharts').checked;
     const includeComparison = document.getElementById('includeComparison').checked;
+    
+    // Calculate processing time
+    const machiningTime = params.machiningTime !== null && params.machiningTime !== undefined 
+        ? params.machiningTime 
+        : (params.processingTime + (params.toolChangeTime || 0));
     
     let html = `
         <!DOCTYPE html>
@@ -2082,17 +2099,21 @@ function generateReportHTML() {
             <meta charset="UTF-8">
             <title>CNC Tool Selection Report</title>
             <style>
-                body { font-family: Arial, sans-serif; padding: 20px; color: #333; }
+                body { font-family: Arial, sans-serif; padding: 20px; color: #333; line-height: 1.6; }
                 h1 { color: #2563eb; border-bottom: 3px solid #2563eb; padding-bottom: 10px; }
                 h2 { color: #1e293b; margin-top: 30px; border-bottom: 2px solid #e2e8f0; padding-bottom: 5px; }
-                h3 { color: #64748b; margin-top: 20px; }
+                h3 { color: #64748b; margin-top: 20px; font-size: 1.1em; }
                 table { width: 100%; border-collapse: collapse; margin: 15px 0; }
                 th, td { border: 1px solid #e2e8f0; padding: 10px; text-align: left; }
                 th { background-color: #f8fafc; font-weight: 600; }
                 .highlight { background-color: #f0fdf4; font-weight: 600; }
                 .section { margin: 20px 0; padding: 15px; background-color: #f8fafc; border-radius: 8px; }
                 .value { font-size: 1.2em; font-weight: 600; color: #2563eb; }
+                .formula { font-family: 'Courier New', monospace; background: white; padding: 8px; border-radius: 4px; margin: 5px 0; }
+                .recommendation { background: #f0fdf4; padding: 8px; margin: 5px 0; border-left: 3px solid #10b981; border-radius: 4px; }
                 .footer { margin-top: 40px; padding-top: 20px; border-top: 2px solid #e2e8f0; font-size: 0.9em; color: #64748b; }
+                .photo-info { margin: 10px 0; }
+                .photo-info img { max-width: 300px; max-height: 300px; border-radius: 8px; border: 2px solid #e2e8f0; }
             </style>
         </head>
         <body>
@@ -2103,12 +2124,13 @@ function generateReportHTML() {
             <div class="section">
                 <h2>Project Information</h2>
                 <table>
-                    ${params.clientName ? `<tr><th>Client</th><td>${params.clientName}</td></tr>` : ''}
-                    ${params.projectName ? `<tr><th>Project</th><td>${params.projectName}</td></tr>` : ''}
-                    ${params.partName ? `<tr><th>Part/Detail</th><td>${params.partName}</td></tr>` : ''}
-                    ${params.machineName ? `<tr><th>Machine</th><td>${params.machineName}</td></tr>` : ''}
+                    ${params.clientName ? `<tr><th>Client Name</th><td>${params.clientName}</td></tr>` : ''}
+                    ${params.projectName ? `<tr><th>Project Name</th><td>${params.projectName}</td></tr>` : ''}
+                    ${params.partName ? `<tr><th>Part/Detail Name</th><td>${params.partName}</td></tr>` : ''}
+                    ${params.machineName ? `<tr><th>Machine Name</th><td>${params.machineName}</td></tr>` : ''}
                     ${params.applicationType ? `<tr><th>Application Type</th><td>${params.applicationType}</td></tr>` : ''}
-                    ${params.batchSize > 1 ? `<tr><th>Batch Size</th><td>${params.batchSize} parts</td></tr>` : ''}
+                    ${params.customerContact ? `<tr><th>Customer Contact Person</th><td>${params.customerContact}</td></tr>` : ''}
+                    ${params.batchSize > 1 ? `<tr><th>Batch/Lot Size</th><td>${params.batchSize} parts</td></tr>` : ''}
                 </table>
             </div>
             
@@ -2119,34 +2141,28 @@ function generateReportHTML() {
                     ${params.toolType ? `<tr><th>Type</th><td>${params.toolType.replace(/([A-Z])/g, ' $1').trim()}</td></tr>` : ''}
                     ${params.toolNameModel ? `<tr><th>Name/Model</th><td>${params.toolNameModel}</td></tr>` : ''}
                     ${params.toolProductCode ? `<tr><th>Product Code</th><td>${params.toolProductCode}</td></tr>` : ''}
-                    <tr><th>Diameter</th><td>${params.toolDiameter} mm</td></tr>
-                    <tr><th>Number of Teeth</th><td>${params.numberOfTeeth}</td></tr>
+                    <tr><th>Tool Diameter (D)</th><td>${params.toolDiameter} mm</td></tr>
+                    <tr><th>Number of Teeth/Flutes (Z)</th><td>${params.numberOfTeeth}</td></tr>
                     <tr><th>Tool Material</th><td>${params.toolMaterial}</td></tr>
-                    <tr><th>Coating</th><td>${params.toolCoating}</td></tr>
-                    <tr><th>Tool Cost</th><td>${formatCurrency(params.toolCost)}</td></tr>
-                </table>
-            </div>
-            
-            <div class="section">
-                <h2>Cost Analysis</h2>
-                <table>
-                    <tr><th>Total Cost per Part</th><td class="value">${formatCurrency(costResults.totalCostPerPart)}</td></tr>
-                    <tr><th>Tool Cost per Part</th><td>${formatCurrency(costResults.toolCostPerPart)}</td></tr>
-                    <tr><th>Machining Cost per Part</th><td>${formatCurrency(costResults.machiningCostPerPart)}</td></tr>
-                    ${costResults.toolChangeCostPerPart > 0 ? `<tr><th>Tool Change Cost per Part</th><td>${formatCurrency(costResults.toolChangeCostPerPart)}</td></tr>` : ''}
-                    ${params.batchSize > 1 ? `
-                    <tr><th>Total Batch Cost (${params.batchSize} parts)</th><td class="value">${formatCurrency(costResults.totalBatchCost)}</td></tr>
+                    <tr><th>Tool Coating</th><td>${params.toolCoating}</td></tr>
+                    ${params.helixAngle ? `<tr><th>Helix Angle (β)</th><td>${params.helixAngle}°</td></tr>` : ''}
+                    ${params.rakeAngle ? `<tr><th>Rake Angle (γ)</th><td>${params.rakeAngle}°</td></tr>` : ''}
+                    <tr><th>Tool Cost (C<sub>t</sub>)</th><td>${formatCurrency(params.toolCost)}</td></tr>
+                    ${params.toolRemainingCost > 0 ? `<tr><th>Tool Residual Value (C<sub>r</sub>)</th><td>${formatCurrency(params.toolRemainingCost)}</td></tr>` : ''}
+                    ${params.toolPhoto ? `
+                    <tr><th>Tool Photo</th><td class="photo-info">
+                        <img src="${params.toolPhoto}" alt="Tool Photo">
+                        ${params.photoDate ? `<br><small>Photo Date: ${formatDate(params.photoDate)}</small>` : ''}
+                    </td></tr>
                     ` : ''}
                 </table>
             </div>
             
             <div class="section">
-                <h2>Tool Life & Performance</h2>
+                <h2>Workpiece Material</h2>
                 <table>
-                    <tr><th>Estimated Tool Life</th><td class="value">${toolLife} minutes</td></tr>
-                    <tr><th>Parts per Tool Life</th><td>${costResults.partsPerToolLife} parts</td></tr>
-                    <tr><th>Spindle Speed</th><td>${formatNumber(spindleSpeed, 'RPM')}</td></tr>
-                    <tr><th>Material Removal Rate</th><td>${formatNumber(mrr, 'mm³/min')}</td></tr>
+                    <tr><th>Material Type</th><td>${params.workpieceMaterial}</td></tr>
+                    ${params.materialHardness ? `<tr><th>Material Hardness (HRC)</th><td>${params.materialHardness}</td></tr>` : ''}
                 </table>
             </div>
             
@@ -2157,12 +2173,121 @@ function generateReportHTML() {
                     <tr><th>Feed per Tooth (f<sub>z</sub>)</th><td>${params.feedRate} mm/tooth</td></tr>
                     <tr><th>Axial Depth of Cut (a<sub>p</sub>)</th><td>${params.depthOfCut} mm</td></tr>
                     <tr><th>Radial Width of Cut (a<sub>e</sub>)</th><td>${params.widthOfCut} mm</td></tr>
-                    <tr><th>Workpiece Material</th><td>${params.workpieceMaterial}</td></tr>
                 </table>
+            </div>
+            
+            <div class="section">
+                <h2>Calculated Machining Parameters</h2>
+                <table>
+                    <tr><th>Spindle Speed (n)</th><td>${formatNumber(spindleSpeed, 'RPM')}</td></tr>
+                    <tr><th>Feed Rate (V<sub>f</sub>)</th><td>${formatNumber(feedRateMM, 'mm/min')}</td></tr>
+                    <tr><th>Feed per Revolution (f)</th><td>${formatNumber(feedPerRev, 'mm/rev')}</td></tr>
+                    <tr><th>Material Removal Rate (Q)</th><td>${formatNumber(mrr, 'mm³/min')}</td></tr>
+                    <tr><th>Chip Thickness (h)</th><td>${formatNumber(chipThickness, 'mm')}</td></tr>
+                </table>
+            </div>
+            
+            <div class="section">
+                <h2>Cutting Forces & Power</h2>
+                <table>
+                    <tr><th>Specific Cutting Force (k<sub>c</sub>)</th><td>${formatNumber(specificCuttingForce, 'N/mm²')}</td></tr>
+                    <tr><th>Cutting Force (F<sub>c</sub>)</th><td>${formatNumber(cuttingForce, 'N')}</td></tr>
+                    <tr><th>Power Requirement (P)</th><td>${formatNumber(powerRequired, 'kW')}</td></tr>
+                    <tr><th>Torque (M)</th><td>${formatNumber(torque, 'Nm')}</td></tr>
+                    <tr><th>MRR per Power</th><td>${formatNumber(mrrPerPower, 'cm³/min/kW')}</td></tr>
+                </table>
+            </div>
+            
+            <div class="section">
+                <h2>Surface Quality</h2>
+                <table>
+                    <tr><th>Surface Roughness (R<sub>a</sub>)</th><td>${formatNumber(surfaceFinish, 'μm')}</td></tr>
+                </table>
+            </div>
+            
+            <div class="section">
+                <h2>Time Parameters</h2>
+                <table>
+                    ${params.processingTime ? `<tr><th>Processing Time - Cutting Time (t<sub>c</sub>)</th><td>${params.processingTime} min</td></tr>` : ''}
+                    ${params.toolChangeTime ? `<tr><th>Tool Change Time</th><td>${params.toolChangeTime} min</td></tr>` : ''}
+                    <tr><th>Total Machining Time per Part</th><td>${machiningTime} min</td></tr>
+                    ${params.machineHourlyRate ? `<tr><th>Machine Hourly Rate</th><td>${formatCurrency(params.machineHourlyRate)}/hour</td></tr>` : ''}
+                    ${params.toolChangeCost > 0 ? `<tr><th>Tool Change Cost</th><td>${formatCurrency(params.toolChangeCost)}</td></tr>` : ''}
+                </table>
+            </div>
+            
+            <div class="section">
+                <h2>Cost Analysis</h2>
+                <table>
+                    <tr><th>Total Cost per Part</th><td class="value">${formatCurrency(costResults.totalCostPerPart)}</td></tr>
+                    <tr><th>Tool Cost per Part</th><td>${formatCurrency(costResults.toolCostPerPart)}</td></tr>
+                    ${costResults.processingCostPerPart ? `<tr><th>Processing (Cutting) Cost per Part</th><td>${formatCurrency(costResults.processingCostPerPart)}</td></tr>` : ''}
+                    <tr><th>Machining Cost per Part</th><td>${formatCurrency(costResults.machiningCostPerPart)}</td></tr>
+                    ${costResults.toolChangeCostPerPart > 0 ? `<tr><th>Tool Change Cost per Part</th><td>${formatCurrency(costResults.toolChangeCostPerPart)}</td></tr>` : ''}
+                    ${params.batchSize > 1 ? `
+                    <tr><th colspan="2" style="background: #e0f2fe; padding-top: 15px;">Batch Cost Analysis</th></tr>
+                    <tr><th>Total Batch Cost (${params.batchSize} parts)</th><td class="value">${formatCurrency(costResults.totalBatchCost)}</td></tr>
+                    <tr><th>Total Tool Cost for Batch</th><td>${formatCurrency(costResults.totalToolCostForBatch)}</td></tr>
+                    <tr><th>Total Machining Cost for Batch</th><td>${formatCurrency(costResults.totalMachiningCostForBatch)}</td></tr>
+                    ` : ''}
+                </table>
+            </div>
+            
+            <div class="section">
+                <h2>Tool Life & Performance</h2>
+                <table>
+                    <tr><th>Estimated Tool Life (T)</th><td class="value">${toolLife} minutes</td></tr>
+                    <tr><th>Parts per Tool Life</th><td>${costResults.partsPerToolLife} parts</td></tr>
+                    ${costResults.toolChangesPerToolLife > 0 ? `<tr><th>Tool Changes per Tool Life</th><td>${costResults.toolChangesPerToolLife}</td></tr>` : ''}
+                    <tr><th>Taylor's Constant (C)</th><td>${formatNumber(taylorConstant, '')}</td></tr>
+                    <tr><th>Taylor Exponent (n)</th><td>0.2 (standard for end milling per ISO 8688-2)</td></tr>
+                </table>
+                <div class="formula" style="margin-top: 10px;">
+                    V<sub>c</sub> × T<sup>n</sup> = C<br>
+                    ${params.cuttingSpeed} × ${toolLife}<sup>0.2</sup> = ${formatNumber(taylorConstant, '')}
+                </div>
+            </div>
+            
+            ${recommendations.length > 0 ? `
+            <div class="section">
+                <h2>Engineering Recommendations</h2>
+                ${recommendations.map(rec => `<div class="recommendation">${rec.message}</div>`).join('')}
+            </div>
+            ` : ''}
+            
+            <div class="section">
+                <h2>Engineering Formulas Used</h2>
+                <div class="formula">n = (V<sub>c</sub> × 1000) / (π × D)</div>
+                <p><small>Spindle Speed: n = RPM, V<sub>c</sub> = cutting speed (m/min), D = tool diameter (mm)</small></p>
+                
+                <div class="formula">V<sub>f</sub> = f<sub>z</sub> × Z × n</div>
+                <p><small>Feed Rate: V<sub>f</sub> = feed rate (mm/min), f<sub>z</sub> = feed per tooth (mm/tooth), Z = number of teeth</small></p>
+                
+                <div class="formula">Q = a<sub>e</sub> × a<sub>p</sub> × V<sub>f</sub></div>
+                <p><small>Material Removal Rate: Q = MRR (mm³/min), a<sub>e</sub> = radial width (mm), a<sub>p</sub> = axial depth (mm)</small></p>
+                
+                <div class="formula">F<sub>c</sub> = k<sub>c</sub> × a<sub>p</sub> × a<sub>e</sub> × f<sub>z</sub></div>
+                <p><small>Cutting Force: F<sub>c</sub> = cutting force (N), k<sub>c</sub> = specific cutting force (N/mm²)</small></p>
+                
+                <div class="formula">P = F<sub>c</sub> × V<sub>c</sub> / 60000</div>
+                <p><small>Power Requirement: P = power (kW), F<sub>c</sub> = cutting force (N), V<sub>c</sub> = cutting speed (m/min)</small></p>
+                
+                <div class="formula">M = P × 9550 / n</div>
+                <p><small>Torque: M = torque (Nm), P = power (kW), n = spindle speed (RPM)</small></p>
             </div>
     `;
     
     if (includeComparison && toolComparisons.length > 0) {
+        // Find best and worst tools for savings
+        const sortedByCost = [...toolComparisons].sort((a, b) => a.totalCostPerPart - b.totalCostPerPart);
+        const bestTool = sortedByCost[0];
+        const worstTool = sortedByCost[sortedByCost.length - 1];
+        const costDifference = worstTool.totalCostPerPart - bestTool.totalCostPerPart;
+        const costSavingsPercent = ((costDifference / worstTool.totalCostPerPart) * 100).toFixed(1);
+        const batchSize = params.batchSize || 1;
+        const savingsPerBatch = costDifference * batchSize;
+        const savingsPer100Parts = costDifference * 100;
+        
         html += `
             <div class="section">
                 <h2>Tool Comparison</h2>
@@ -2171,22 +2296,33 @@ function generateReportHTML() {
                         <tr>
                             <th>Tool</th>
                             <th>Brand</th>
+                            <th>Type</th>
+                            <th>Part</th>
+                            <th>Material</th>
+                            <th>Coating</th>
                             <th>Cost/Part</th>
                             <th>Tool Life</th>
                             <th>MRR</th>
+                            <th>Tool Cost</th>
                         </tr>
                     </thead>
                     <tbody>
         `;
         
         toolComparisons.forEach(tool => {
+            const isBest = tool.totalCostPerPart === bestTool.totalCostPerPart;
             html += `
-                <tr>
+                <tr ${isBest ? 'class="highlight"' : ''}>
                     <td>${tool.name}</td>
                     <td>${tool.toolBrand ? tool.toolBrand.charAt(0).toUpperCase() + tool.toolBrand.slice(1) : 'N/A'}</td>
-                    <td>${formatCurrency(tool.totalCostPerPart)}</td>
+                    <td>${tool.toolType ? tool.toolType.replace(/([A-Z])/g, ' $1').trim() : 'N/A'}</td>
+                    <td>${tool.partName || 'N/A'}</td>
+                    <td>${tool.toolMaterial || 'N/A'}</td>
+                    <td>${tool.toolCoating || 'N/A'}</td>
+                    <td ${isBest ? 'class="value"' : ''}>${formatCurrency(tool.totalCostPerPart)}</td>
                     <td>${tool.toolLife} min</td>
                     <td>${formatNumber(tool.mrr, 'mm³/min')}</td>
+                    <td>${formatCurrency(tool.toolCost)}</td>
                 </tr>
             `;
         });
@@ -2196,6 +2332,24 @@ function generateReportHTML() {
                 </table>
             </div>
         `;
+        
+        if (toolComparisons.length >= 2) {
+            html += `
+                <div class="section">
+                    <h2>Potential Savings Analysis</h2>
+                    <table>
+                        <tr><th>Best Tool (Lowest Cost)</th><td class="value">${bestTool.name}</td></tr>
+                        <tr><th>Best Tool Cost per Part</th><td>${formatCurrency(bestTool.totalCostPerPart)}</td></tr>
+                        <tr><th>Most Expensive Tool</th><td>${worstTool.name}</td></tr>
+                        <tr><th>Most Expensive Tool Cost per Part</th><td>${formatCurrency(worstTool.totalCostPerPart)}</td></tr>
+                        <tr><th colspan="2" style="background: #e0f2fe; padding-top: 15px;">Savings Potential</th></tr>
+                        <tr><th>Savings per Part</th><td class="value">${formatCurrency(costDifference)} (${costSavingsPercent}% reduction)</td></tr>
+                        ${batchSize > 1 ? `<tr><th>Savings per Batch (${batchSize} parts)</th><td class="value">${formatCurrency(savingsPerBatch)}</td></tr>` : ''}
+                        <tr><th>Savings per 100 Parts</th><td class="value">${formatCurrency(savingsPer100Parts)}</td></tr>
+                    </table>
+                </div>
+            `;
+        }
     }
     
     html += `
@@ -2214,30 +2368,164 @@ function generateReportText() {
     const params = getInputValues();
     const toolLife = params.toolLife || calculateToolLife(params);
     const costResults = calculateCostPerPart({ ...params, toolLife });
+    const mrr = calculateMRR(params);
+    const spindleSpeed = calculateSpindleSpeed(params.cuttingSpeed, params.toolDiameter);
+    const feedPerRev = calculateFeedPerRevolution(params.feedRate, params.numberOfTeeth);
+    const feedRateMM = calculateFeedRate(params.feedRate, params.numberOfTeeth, spindleSpeed);
+    const chipThickness = calculateChipThickness(params.feedRate, params.depthOfCut, params.toolDiameter);
+    const materialHardness = params.materialHardness || 30;
+    const specificCuttingForce = calculateSpecificCuttingForce(params.workpieceMaterial, materialHardness);
+    const cuttingForce = calculateCuttingForce(specificCuttingForce, params.depthOfCut, params.widthOfCut, params.feedRate);
+    const powerRequired = calculatePowerRequirement(cuttingForce, params.cuttingSpeed);
+    const torque = calculateTorque(powerRequired, spindleSpeed);
+    const surfaceFinish = calculateSurfaceFinish(params.feedRate, params.toolDiameter, params.numberOfTeeth);
+    const taylorConstant = calculateTaylorConstant(params.cuttingSpeed, toolLife);
+    const mrrPerPower = calculateMRRPerPower(mrr, powerRequired);
     
     let text = `CNC TOOL SELECTION REPORT
 Generated: ${new Date().toLocaleString()}
-Based on: ISO 8688-2:1989
+Based on: ISO 8688-2:1989 - Tool life testing in milling Part 2: End milling
 
+═══════════════════════════════════════════════════════════════
 PROJECT INFORMATION
-${params.clientName ? `Client: ${params.clientName}\n` : ''}${params.projectName ? `Project: ${params.projectName}\n` : ''}${params.partName ? `Part: ${params.partName}\n` : ''}${params.machineName ? `Machine: ${params.machineName}\n` : ''}
+═══════════════════════════════════════════════════════════════
+${params.clientName ? `Client Name: ${params.clientName}\n` : ''}${params.projectName ? `Project Name: ${params.projectName}\n` : ''}${params.partName ? `Part/Detail Name: ${params.partName}\n` : ''}${params.machineName ? `Machine Name: ${params.machineName}\n` : ''}${params.applicationType ? `Application Type: ${params.applicationType}\n` : ''}${params.customerContact ? `Customer Contact: ${params.customerContact}\n` : ''}${params.batchSize > 1 ? `Batch/Lot Size: ${params.batchSize} parts\n` : ''}
 
+═══════════════════════════════════════════════════════════════
 TOOL INFORMATION
-${params.toolBrand ? `Brand: ${params.toolBrand}\n` : ''}${params.toolNameModel ? `Model: ${params.toolNameModel}\n` : ''}Diameter: ${params.toolDiameter} mm
-Number of Teeth: ${params.numberOfTeeth}
-Tool Cost: ${formatCurrency(params.toolCost)}
+═══════════════════════════════════════════════════════════════
+${params.toolBrand ? `Brand: ${params.toolBrand.charAt(0).toUpperCase() + params.toolBrand.slice(1)}\n` : ''}${params.toolType ? `Type: ${params.toolType.replace(/([A-Z])/g, ' $1').trim()}\n` : ''}${params.toolNameModel ? `Name/Model: ${params.toolNameModel}\n` : ''}${params.toolProductCode ? `Product Code: ${params.toolProductCode}\n` : ''}Tool Diameter (D): ${params.toolDiameter} mm
+Number of Teeth/Flutes (Z): ${params.numberOfTeeth}
+Tool Material: ${params.toolMaterial}
+Tool Coating: ${params.toolCoating}
+${params.helixAngle ? `Helix Angle (β): ${params.helixAngle}°\n` : ''}${params.rakeAngle ? `Rake Angle (γ): ${params.rakeAngle}°\n` : ''}Tool Cost (Ct): ${formatCurrency(params.toolCost)}
+${params.toolRemainingCost > 0 ? `Tool Residual Value (Cr): ${formatCurrency(params.toolRemainingCost)}\n` : ''}${params.photoDate ? `Photo Date: ${formatDate(params.photoDate)}\n` : ''}
 
+═══════════════════════════════════════════════════════════════
+WORKPIECE MATERIAL
+═══════════════════════════════════════════════════════════════
+Material Type: ${params.workpieceMaterial}
+${params.materialHardness ? `Material Hardness (HRC): ${params.materialHardness}\n` : ''}
+
+═══════════════════════════════════════════════════════════════
+CUTTING PARAMETERS
+═══════════════════════════════════════════════════════════════
+Cutting Speed (Vc): ${params.cuttingSpeed} m/min
+Feed per Tooth (fz): ${params.feedRate} mm/tooth
+Axial Depth of Cut (ap): ${params.depthOfCut} mm
+Radial Width of Cut (ae): ${params.widthOfCut} mm
+
+═══════════════════════════════════════════════════════════════
+CALCULATED MACHINING PARAMETERS
+═══════════════════════════════════════════════════════════════
+Spindle Speed (n): ${formatNumber(spindleSpeed, 'RPM')}
+Feed Rate (Vf): ${formatNumber(feedRateMM, 'mm/min')}
+Feed per Revolution (f): ${formatNumber(feedPerRev, 'mm/rev')}
+Material Removal Rate (Q): ${formatNumber(mrr, 'mm³/min')}
+Chip Thickness (h): ${formatNumber(chipThickness, 'mm')}
+
+═══════════════════════════════════════════════════════════════
+CUTTING FORCES & POWER
+═══════════════════════════════════════════════════════════════
+Specific Cutting Force (kc): ${formatNumber(specificCuttingForce, 'N/mm²')}
+Cutting Force (Fc): ${formatNumber(cuttingForce, 'N')}
+Power Requirement (P): ${formatNumber(powerRequired, 'kW')}
+Torque (M): ${formatNumber(torque, 'Nm')}
+MRR per Power: ${formatNumber(mrrPerPower, 'cm³/min/kW')}
+
+═══════════════════════════════════════════════════════════════
+SURFACE QUALITY
+═══════════════════════════════════════════════════════════════
+Surface Roughness (Ra): ${formatNumber(surfaceFinish, 'μm')}
+
+═══════════════════════════════════════════════════════════════
+TIME PARAMETERS
+═══════════════════════════════════════════════════════════════
+${params.processingTime ? `Processing Time - Cutting Time (tc): ${params.processingTime} min\n` : ''}${params.toolChangeTime ? `Tool Change Time: ${params.toolChangeTime} min\n` : ''}Total Machining Time per Part: ${params.machiningTime !== null && params.machiningTime !== undefined ? params.machiningTime : (params.processingTime + (params.toolChangeTime || 0))} min
+${params.machineHourlyRate ? `Machine Hourly Rate: ${formatCurrency(params.machineHourlyRate)}/hour\n` : ''}${params.toolChangeCost > 0 ? `Tool Change Cost: ${formatCurrency(params.toolChangeCost)}\n` : ''}
+
+═══════════════════════════════════════════════════════════════
 COST ANALYSIS
+═══════════════════════════════════════════════════════════════
 Total Cost per Part: ${formatCurrency(costResults.totalCostPerPart)}
 Tool Cost per Part: ${formatCurrency(costResults.toolCostPerPart)}
-Machining Cost per Part: ${formatCurrency(costResults.machiningCostPerPart)}
+${costResults.processingCostPerPart ? `Processing (Cutting) Cost per Part: ${formatCurrency(costResults.processingCostPerPart)}\n` : ''}Machining Cost per Part: ${formatCurrency(costResults.machiningCostPerPart)}
+${costResults.toolChangeCostPerPart > 0 ? `Tool Change Cost per Part: ${formatCurrency(costResults.toolChangeCostPerPart)}\n` : ''}${params.batchSize > 1 ? `
+BATCH COST ANALYSIS (${params.batchSize} parts):
+Total Batch Cost: ${formatCurrency(costResults.totalBatchCost)}
+Total Tool Cost for Batch: ${formatCurrency(costResults.totalToolCostForBatch)}
+Total Machining Cost for Batch: ${formatCurrency(costResults.totalMachiningCostForBatch)}
+` : ''}
 
-TOOL LIFE
-Estimated Tool Life: ${toolLife} minutes
+═══════════════════════════════════════════════════════════════
+TOOL LIFE & PERFORMANCE
+═══════════════════════════════════════════════════════════════
+Estimated Tool Life (T): ${toolLife} minutes
 Parts per Tool Life: ${costResults.partsPerToolLife} parts
+${costResults.toolChangesPerToolLife > 0 ? `Tool Changes per Tool Life: ${costResults.toolChangesPerToolLife}\n` : ''}Taylor's Constant (C): ${formatNumber(taylorConstant, '')}
+Taylor Exponent (n): 0.2 (standard for end milling per ISO 8688-2)
+Taylor's Equation: Vc × T^n = C
+                  ${params.cuttingSpeed} × ${toolLife}^0.2 = ${formatNumber(taylorConstant, '')}
+`;
 
----
+    if (toolComparisons.length > 0) {
+        const sortedByCost = [...toolComparisons].sort((a, b) => a.totalCostPerPart - b.totalCostPerPart);
+        const bestTool = sortedByCost[0];
+        const worstTool = sortedByCost[sortedByCost.length - 1];
+        const costDifference = worstTool.totalCostPerPart - bestTool.totalCostPerPart;
+        const costSavingsPercent = ((costDifference / worstTool.totalCostPerPart) * 100).toFixed(1);
+        const batchSize = params.batchSize || 1;
+        const savingsPerBatch = costDifference * batchSize;
+        const savingsPer100Parts = costDifference * 100;
+        
+        text += `
+═══════════════════════════════════════════════════════════════
+TOOL COMPARISON
+═══════════════════════════════════════════════════════════════
+`;
+        toolComparisons.forEach((tool, index) => {
+            text += `Tool ${index + 1}: ${tool.name}
+  Brand: ${tool.toolBrand ? tool.toolBrand.charAt(0).toUpperCase() + tool.toolBrand.slice(1) : 'N/A'}
+  Cost/Part: ${formatCurrency(tool.totalCostPerPart)}
+  Tool Life: ${tool.toolLife} min
+  MRR: ${formatNumber(tool.mrr, 'mm³/min')}
+  Tool Cost: ${formatCurrency(tool.toolCost)}
+
+`;
+        });
+        
+        if (toolComparisons.length >= 2) {
+            text += `═══════════════════════════════════════════════════════════════
+POTENTIAL SAVINGS ANALYSIS
+═══════════════════════════════════════════════════════════════
+Best Tool (Lowest Cost): ${bestTool.name}
+Best Tool Cost per Part: ${formatCurrency(bestTool.totalCostPerPart)}
+Most Expensive Tool: ${worstTool.name}
+Most Expensive Tool Cost per Part: ${formatCurrency(worstTool.totalCostPerPart)}
+
+SAVINGS POTENTIAL:
+Savings per Part: ${formatCurrency(costDifference)} (${costSavingsPercent}% reduction)
+${batchSize > 1 ? `Savings per Batch (${batchSize} parts): ${formatCurrency(savingsPerBatch)}\n` : ''}Savings per 100 Parts: ${formatCurrency(savingsPer100Parts)}
+`;
+        }
+    }
+    
+    text += `
+═══════════════════════════════════════════════════════════════
+ENGINEERING FORMULAS USED
+═══════════════════════════════════════════════════════════════
+Spindle Speed: n = (Vc × 1000) / (π × D)
+Feed Rate: Vf = fz × Z × n
+Material Removal Rate: Q = ae × ap × Vf
+Cutting Force: Fc = kc × ap × ae × fz
+Power Requirement: P = Fc × Vc / 60000
+Torque: M = P × 9550 / n
+Taylor's Tool Life: Vc × T^n = C
+
+═══════════════════════════════════════════════════════════════
 Generated by CNC Tool Selection Calculator
+Developed by Yrgel (laurisoosaar@gmail.com)
+Venten OÜ - https://www.venten.ee/
 `;
     
     return text;
@@ -2324,81 +2612,248 @@ async function downloadReportPDF() {
         const params = getInputValues();
         const toolLife = params.toolLife || calculateToolLife(params);
         const costResults = calculateCostPerPart({ ...params, toolLife });
+        const mrr = calculateMRR(params);
+        const spindleSpeed = calculateSpindleSpeed(params.cuttingSpeed, params.toolDiameter);
+        const feedPerRev = calculateFeedPerRevolution(params.feedRate, params.numberOfTeeth);
+        const feedRateMM = calculateFeedRate(params.feedRate, params.numberOfTeeth, spindleSpeed);
+        const chipThickness = calculateChipThickness(params.feedRate, params.depthOfCut, params.toolDiameter);
+        const materialHardness = params.materialHardness || 30;
+        const specificCuttingForce = calculateSpecificCuttingForce(params.workpieceMaterial, materialHardness);
+        const cuttingForce = calculateCuttingForce(specificCuttingForce, params.depthOfCut, params.widthOfCut, params.feedRate);
+        const powerRequired = calculatePowerRequirement(cuttingForce, params.cuttingSpeed);
+        const torque = calculateTorque(powerRequired, spindleSpeed);
+        const surfaceFinish = calculateSurfaceFinish(params.feedRate, params.toolDiameter, params.numberOfTeeth);
+        const taylorConstant = calculateTaylorConstant(params.cuttingSpeed, toolLife);
+        const mrrPerPower = calculateMRRPerPower(mrr, powerRequired);
         
         let yPos = 20;
+        const pageHeight = doc.internal.pageSize.height;
+        const margin = 20;
+        const lineHeight = 6;
+        
+        // Helper function to check if new page needed
+        function checkNewPage(requiredSpace = 10) {
+            if (yPos + requiredSpace > pageHeight - 15) {
+                doc.addPage();
+                yPos = 20;
+                return true;
+            }
+            return false;
+        }
         
         // Title
         doc.setFontSize(18);
         doc.setTextColor(37, 99, 235);
-        doc.text('CNC Tool Selection Report', 20, yPos);
+        doc.text('CNC Tool Selection Report', margin, yPos);
         yPos += 10;
         
-        doc.setFontSize(10);
+        doc.setFontSize(9);
         doc.setTextColor(100, 100, 100);
-        doc.text(`Generated: ${new Date().toLocaleString()}`, 20, yPos);
+        doc.text(`Generated: ${new Date().toLocaleString()}`, margin, yPos);
         yPos += 5;
-        doc.text('ISO 8688-2:1989 - Tool life testing in milling Part 2: End milling', 20, yPos);
-        yPos += 15;
+        doc.setFontSize(8);
+        doc.text('ISO 8688-2:1989 - Tool life testing in milling Part 2: End milling', margin, yPos);
+        yPos += 12;
         
         // Project Information
+        checkNewPage(15);
         doc.setFontSize(14);
         doc.setTextColor(30, 41, 59);
-        doc.text('Project Information', 20, yPos);
+        doc.text('Project Information', margin, yPos);
         yPos += 8;
         
         doc.setFontSize(10);
         doc.setTextColor(0, 0, 0);
-        if (params.clientName) { doc.text(`Client: ${params.clientName}`, 25, yPos); yPos += 6; }
-        if (params.projectName) { doc.text(`Project: ${params.projectName}`, 25, yPos); yPos += 6; }
-        if (params.partName) { doc.text(`Part: ${params.partName}`, 25, yPos); yPos += 6; }
-        if (params.machineName) { doc.text(`Machine: ${params.machineName}`, 25, yPos); yPos += 6; }
+        if (params.clientName) { doc.text(`Client: ${params.clientName}`, margin + 5, yPos); yPos += lineHeight; }
+        if (params.projectName) { doc.text(`Project: ${params.projectName}`, margin + 5, yPos); yPos += lineHeight; }
+        if (params.partName) { doc.text(`Part: ${params.partName}`, margin + 5, yPos); yPos += lineHeight; }
+        if (params.machineName) { doc.text(`Machine: ${params.machineName}`, margin + 5, yPos); yPos += lineHeight; }
+        if (params.applicationType) { doc.text(`Application: ${params.applicationType}`, margin + 5, yPos); yPos += lineHeight; }
+        if (params.customerContact) { doc.text(`Contact: ${params.customerContact}`, margin + 5, yPos); yPos += lineHeight; }
+        if (params.batchSize > 1) { doc.text(`Batch Size: ${params.batchSize} parts`, margin + 5, yPos); yPos += lineHeight; }
         yPos += 5;
         
         // Tool Information
+        checkNewPage(20);
         doc.setFontSize(14);
         doc.setTextColor(30, 41, 59);
-        doc.text('Tool Information', 20, yPos);
+        doc.text('Tool Information', margin, yPos);
         yPos += 8;
         
         doc.setFontSize(10);
         doc.setTextColor(0, 0, 0);
-        if (params.toolBrand) { doc.text(`Brand: ${params.toolBrand}`, 25, yPos); yPos += 6; }
-        if (params.toolNameModel) { doc.text(`Model: ${params.toolNameModel}`, 25, yPos); yPos += 6; }
-        doc.text(`Diameter: ${params.toolDiameter} mm`, 25, yPos); yPos += 6;
-        doc.text(`Number of Teeth: ${params.numberOfTeeth}`, 25, yPos); yPos += 6;
-        doc.text(`Tool Cost: ${formatCurrency(params.toolCost)}`, 25, yPos); yPos += 10;
+        if (params.toolBrand) { doc.text(`Brand: ${params.toolBrand}`, margin + 5, yPos); yPos += lineHeight; }
+        if (params.toolType) { doc.text(`Type: ${params.toolType.replace(/([A-Z])/g, ' $1').trim()}`, margin + 5, yPos); yPos += lineHeight; }
+        if (params.toolNameModel) { doc.text(`Model: ${params.toolNameModel}`, margin + 5, yPos); yPos += lineHeight; }
+        if (params.toolProductCode) { doc.text(`Product Code: ${params.toolProductCode}`, margin + 5, yPos); yPos += lineHeight; }
+        doc.text(`Diameter: ${params.toolDiameter} mm`, margin + 5, yPos); yPos += lineHeight;
+        doc.text(`Number of Teeth: ${params.numberOfTeeth}`, margin + 5, yPos); yPos += lineHeight;
+        doc.text(`Tool Material: ${params.toolMaterial}`, margin + 5, yPos); yPos += lineHeight;
+        doc.text(`Coating: ${params.toolCoating}`, margin + 5, yPos); yPos += lineHeight;
+        if (params.helixAngle) { doc.text(`Helix Angle: ${params.helixAngle}°`, margin + 5, yPos); yPos += lineHeight; }
+        if (params.rakeAngle) { doc.text(`Rake Angle: ${params.rakeAngle}°`, margin + 5, yPos); yPos += lineHeight; }
+        doc.text(`Tool Cost: ${formatCurrency(params.toolCost)}`, margin + 5, yPos); yPos += lineHeight;
+        if (params.toolRemainingCost > 0) { doc.text(`Residual Value: ${formatCurrency(params.toolRemainingCost)}`, margin + 5, yPos); yPos += lineHeight; }
+        yPos += 5;
+        
+        // Workpiece Material
+        checkNewPage(10);
+        doc.setFontSize(14);
+        doc.setTextColor(30, 41, 59);
+        doc.text('Workpiece Material', margin, yPos);
+        yPos += 8;
+        doc.setFontSize(10);
+        doc.text(`Material: ${params.workpieceMaterial}`, margin + 5, yPos); yPos += lineHeight;
+        if (params.materialHardness) { doc.text(`Hardness (HRC): ${params.materialHardness}`, margin + 5, yPos); yPos += lineHeight; }
+        yPos += 5;
+        
+        // Cutting Parameters
+        checkNewPage(15);
+        doc.setFontSize(14);
+        doc.setTextColor(30, 41, 59);
+        doc.text('Cutting Parameters', margin, yPos);
+        yPos += 8;
+        doc.setFontSize(10);
+        doc.text(`Cutting Speed (Vc): ${params.cuttingSpeed} m/min`, margin + 5, yPos); yPos += lineHeight;
+        doc.text(`Feed per Tooth (fz): ${params.feedRate} mm/tooth`, margin + 5, yPos); yPos += lineHeight;
+        doc.text(`Axial Depth (ap): ${params.depthOfCut} mm`, margin + 5, yPos); yPos += lineHeight;
+        doc.text(`Radial Width (ae): ${params.widthOfCut} mm`, margin + 5, yPos); yPos += 5;
+        
+        // Calculated Parameters
+        checkNewPage(20);
+        doc.setFontSize(14);
+        doc.setTextColor(30, 41, 59);
+        doc.text('Calculated Machining Parameters', margin, yPos);
+        yPos += 8;
+        doc.setFontSize(10);
+        doc.text(`Spindle Speed (n): ${formatNumber(spindleSpeed, 'RPM')}`, margin + 5, yPos); yPos += lineHeight;
+        doc.text(`Feed Rate (Vf): ${formatNumber(feedRateMM, 'mm/min')}`, margin + 5, yPos); yPos += lineHeight;
+        doc.text(`Feed per Rev (f): ${formatNumber(feedPerRev, 'mm/rev')}`, margin + 5, yPos); yPos += lineHeight;
+        doc.text(`MRR (Q): ${formatNumber(mrr, 'mm³/min')}`, margin + 5, yPos); yPos += lineHeight;
+        doc.text(`Chip Thickness (h): ${formatNumber(chipThickness, 'mm')}`, margin + 5, yPos); yPos += 5;
+        
+        // Forces & Power
+        checkNewPage(20);
+        doc.setFontSize(14);
+        doc.setTextColor(30, 41, 59);
+        doc.text('Cutting Forces & Power', margin, yPos);
+        yPos += 8;
+        doc.setFontSize(10);
+        doc.text(`Specific Cutting Force (kc): ${formatNumber(specificCuttingForce, 'N/mm²')}`, margin + 5, yPos); yPos += lineHeight;
+        doc.text(`Cutting Force (Fc): ${formatNumber(cuttingForce, 'N')}`, margin + 5, yPos); yPos += lineHeight;
+        doc.text(`Power (P): ${formatNumber(powerRequired, 'kW')}`, margin + 5, yPos); yPos += lineHeight;
+        doc.text(`Torque (M): ${formatNumber(torque, 'Nm')}`, margin + 5, yPos); yPos += lineHeight;
+        doc.text(`MRR per Power: ${formatNumber(mrrPerPower, 'cm³/min/kW')}`, margin + 5, yPos); yPos += 5;
+        
+        // Surface Quality
+        checkNewPage(10);
+        doc.setFontSize(14);
+        doc.setTextColor(30, 41, 59);
+        doc.text('Surface Quality', margin, yPos);
+        yPos += 8;
+        doc.setFontSize(10);
+        doc.text(`Surface Roughness (Ra): ${formatNumber(surfaceFinish, 'μm')}`, margin + 5, yPos); yPos += 5;
+        
+        // Time Parameters
+        checkNewPage(15);
+        doc.setFontSize(14);
+        doc.setTextColor(30, 41, 59);
+        doc.text('Time Parameters', margin, yPos);
+        yPos += 8;
+        doc.setFontSize(10);
+        if (params.processingTime) { doc.text(`Processing Time: ${params.processingTime} min`, margin + 5, yPos); yPos += lineHeight; }
+        if (params.toolChangeTime) { doc.text(`Tool Change Time: ${params.toolChangeTime} min`, margin + 5, yPos); yPos += lineHeight; }
+        const machiningTime = params.machiningTime !== null && params.machiningTime !== undefined 
+            ? params.machiningTime 
+            : (params.processingTime + (params.toolChangeTime || 0));
+        doc.text(`Total Machining Time: ${machiningTime} min`, margin + 5, yPos); yPos += lineHeight;
+        if (params.machineHourlyRate) { doc.text(`Machine Rate: ${formatCurrency(params.machineHourlyRate)}/hour`, margin + 5, yPos); yPos += lineHeight; }
+        if (params.toolChangeCost > 0) { doc.text(`Tool Change Cost: ${formatCurrency(params.toolChangeCost)}`, margin + 5, yPos); yPos += lineHeight; }
+        yPos += 5;
         
         // Cost Analysis
+        checkNewPage(20);
         doc.setFontSize(14);
         doc.setTextColor(30, 41, 59);
-        doc.text('Cost Analysis', 20, yPos);
+        doc.text('Cost Analysis', margin, yPos);
         yPos += 8;
-        
         doc.setFontSize(12);
         doc.setTextColor(37, 99, 235);
-        doc.text(`Total Cost per Part: ${formatCurrency(costResults.totalCostPerPart)}`, 25, yPos);
+        doc.text(`Total Cost per Part: ${formatCurrency(costResults.totalCostPerPart)}`, margin + 5, yPos);
         yPos += 8;
-        
         doc.setFontSize(10);
         doc.setTextColor(0, 0, 0);
-        doc.text(`Tool Cost per Part: ${formatCurrency(costResults.toolCostPerPart)}`, 25, yPos); yPos += 6;
-        doc.text(`Machining Cost per Part: ${formatCurrency(costResults.machiningCostPerPart)}`, 25, yPos); yPos += 10;
+        doc.text(`Tool Cost per Part: ${formatCurrency(costResults.toolCostPerPart)}`, margin + 5, yPos); yPos += lineHeight;
+        if (costResults.processingCostPerPart) { doc.text(`Processing Cost: ${formatCurrency(costResults.processingCostPerPart)}`, margin + 5, yPos); yPos += lineHeight; }
+        doc.text(`Machining Cost per Part: ${formatCurrency(costResults.machiningCostPerPart)}`, margin + 5, yPos); yPos += lineHeight;
+        if (costResults.toolChangeCostPerPart > 0) { doc.text(`Tool Change Cost: ${formatCurrency(costResults.toolChangeCostPerPart)}`, margin + 5, yPos); yPos += lineHeight; }
+        if (params.batchSize > 1) {
+            yPos += 3;
+            doc.setFontSize(11);
+            doc.setTextColor(30, 41, 59);
+            doc.text(`Batch Cost (${params.batchSize} parts): ${formatCurrency(costResults.totalBatchCost)}`, margin + 5, yPos);
+            yPos += lineHeight;
+            doc.setFontSize(10);
+            doc.text(`Tool Cost for Batch: ${formatCurrency(costResults.totalToolCostForBatch)}`, margin + 5, yPos); yPos += lineHeight;
+            doc.text(`Machining Cost for Batch: ${formatCurrency(costResults.totalMachiningCostForBatch)}`, margin + 5, yPos); yPos += lineHeight;
+        }
+        yPos += 5;
         
         // Tool Life
+        checkNewPage(15);
         doc.setFontSize(14);
         doc.setTextColor(30, 41, 59);
-        doc.text('Tool Life & Performance', 20, yPos);
+        doc.text('Tool Life & Performance', margin, yPos);
         yPos += 8;
-        
         doc.setFontSize(10);
-        doc.setTextColor(0, 0, 0);
-        doc.text(`Estimated Tool Life: ${toolLife} minutes`, 25, yPos); yPos += 6;
-        doc.text(`Parts per Tool Life: ${costResults.partsPerToolLife} parts`, 25, yPos); yPos += 10;
+        doc.text(`Estimated Tool Life (T): ${toolLife} minutes`, margin + 5, yPos); yPos += lineHeight;
+        doc.text(`Parts per Tool Life: ${costResults.partsPerToolLife} parts`, margin + 5, yPos); yPos += lineHeight;
+        if (costResults.toolChangesPerToolLife > 0) { doc.text(`Tool Changes: ${costResults.toolChangesPerToolLife}`, margin + 5, yPos); yPos += lineHeight; }
+        doc.text(`Taylor's Constant (C): ${formatNumber(taylorConstant, '')}`, margin + 5, yPos); yPos += lineHeight;
+        doc.text(`Taylor Exponent (n): 0.2`, margin + 5, yPos); yPos += 5;
+        
+        // Tool Comparison
+        if (toolComparisons.length > 0) {
+            checkNewPage(25);
+            doc.setFontSize(14);
+            doc.setTextColor(30, 41, 59);
+            doc.text('Tool Comparison', margin, yPos);
+            yPos += 8;
+            doc.setFontSize(9);
+            
+            toolComparisons.forEach((tool, index) => {
+                checkNewPage(15);
+                doc.text(`Tool ${index + 1}: ${tool.name}`, margin + 5, yPos); yPos += lineHeight;
+                doc.text(`  Cost/Part: ${formatCurrency(tool.totalCostPerPart)} | Life: ${tool.toolLife} min | MRR: ${formatNumber(tool.mrr, 'mm³/min')}`, margin + 5, yPos); yPos += lineHeight + 2;
+            });
+            
+            if (toolComparisons.length >= 2) {
+                const sortedByCost = [...toolComparisons].sort((a, b) => a.totalCostPerPart - b.totalCostPerPart);
+                const bestTool = sortedByCost[0];
+                const worstTool = sortedByCost[sortedByCost.length - 1];
+                const costDifference = worstTool.totalCostPerPart - bestTool.totalCostPerPart;
+                const costSavingsPercent = ((costDifference / worstTool.totalCostPerPart) * 100).toFixed(1);
+                const batchSize = params.batchSize || 1;
+                const savingsPerBatch = costDifference * batchSize;
+                
+                checkNewPage(20);
+                doc.setFontSize(14);
+                doc.setTextColor(30, 41, 59);
+                doc.text('Potential Savings', margin, yPos);
+                yPos += 8;
+                doc.setFontSize(10);
+                doc.text(`Best Tool: ${bestTool.name} (${formatCurrency(bestTool.totalCostPerPart)}/part)`, margin + 5, yPos); yPos += lineHeight;
+                doc.text(`Savings per Part: ${formatCurrency(costDifference)} (${costSavingsPercent}%)`, margin + 5, yPos); yPos += lineHeight;
+                if (batchSize > 1) { doc.text(`Savings per Batch: ${formatCurrency(savingsPerBatch)}`, margin + 5, yPos); yPos += lineHeight; }
+            }
+        }
         
         // Footer
+        checkNewPage(10);
         doc.setFontSize(8);
         doc.setTextColor(100, 100, 100);
-        doc.text('Generated by CNC Tool Selection Calculator', 20, doc.internal.pageSize.height - 10);
+        doc.text('Generated by CNC Tool Selection Calculator | Developed by Yrgel', margin, pageHeight - 10);
+        doc.text('Venten OÜ - https://www.venten.ee/', margin, pageHeight - 5);
         
         // Save PDF
         doc.save(`CNC_Tool_Report_${new Date().toISOString().split('T')[0]}.pdf`);
@@ -2410,8 +2865,126 @@ async function downloadReportPDF() {
     }
 }
 
+// Load Venten logo from their website
+function loadVentenLogo() {
+    const logoImg = document.getElementById('ventenLogo');
+    const logoText = document.getElementById('ventenLogoText');
+    
+    if (!logoImg) return;
+    
+    // Common logo paths to try (Magento and WordPress common locations)
+    const logoPaths = [
+        'https://www.venten.ee/media/logo/default/logo.png',
+        'https://www.venten.ee/media/wysiwyg/logo.png',
+        'https://www.venten.ee/media/logo/logo.png',
+        'https://www.venten.ee/media/wysiwyg/venten_ainultlogo.png',
+        'https://www.venten.ee/skin/frontend/default/default/images/logo.png',
+        'https://www.venten.ee/wp-content/themes/venten/images/logo.png'
+    ];
+    
+    let currentIndex = 0;
+    
+    function tryNextLogo() {
+        if (currentIndex >= logoPaths.length) {
+            // All paths failed, show text fallback
+            logoImg.style.display = 'none';
+            logoText.style.display = 'inline-block';
+            return;
+        }
+        
+        logoImg.src = logoPaths[currentIndex];
+        logoImg.onload = function() {
+            logoImg.style.display = 'inline-block';
+            logoText.style.display = 'none';
+        };
+        logoImg.onerror = function() {
+            currentIndex++;
+            tryNextLogo();
+        };
+    }
+    
+    tryNextLogo();
+}
+
+// Show toast notification
+function showToast(message, type = 'info', duration = 3000) {
+    // Remove existing toast if any
+    const existingToast = document.getElementById('toastNotification');
+    if (existingToast) {
+        existingToast.remove();
+    }
+    
+    const toast = document.createElement('div');
+    toast.id = 'toastNotification';
+    toast.className = `toast toast-${type}`;
+    toast.textContent = message;
+    
+    document.body.appendChild(toast);
+    
+    // Trigger animation
+    setTimeout(() => toast.classList.add('show'), 10);
+    
+    // Remove after duration
+    setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 300);
+    }, duration);
+}
+
+// Validate input parameters
+function validateInputs(params) {
+    const errors = [];
+    
+    if (!params.toolDiameter || params.toolDiameter <= 0) {
+        errors.push('Tool diameter must be greater than 0');
+    }
+    if (!params.cuttingSpeed || params.cuttingSpeed <= 0) {
+        errors.push('Cutting speed must be greater than 0');
+    }
+    if (!params.feedRate || params.feedRate <= 0) {
+        errors.push('Feed per tooth must be greater than 0');
+    }
+    if (!params.depthOfCut || params.depthOfCut <= 0) {
+        errors.push('Depth of cut must be greater than 0');
+    }
+    if (!params.widthOfCut || params.widthOfCut <= 0) {
+        errors.push('Width of cut must be greater than 0');
+    }
+    if (!params.numberOfTeeth || params.numberOfTeeth <= 0) {
+        errors.push('Number of teeth must be greater than 0');
+    }
+    if (!params.toolCost || params.toolCost <= 0) {
+        errors.push('Tool cost must be greater than 0');
+    }
+    if (!params.machineHourlyRate || params.machineHourlyRate <= 0) {
+        errors.push('Machine hourly rate must be greater than 0');
+    }
+    
+    return errors;
+}
+
+// Set button loading state
+function setButtonLoading(buttonId, isLoading, originalText = null) {
+    const button = document.getElementById(buttonId);
+    if (!button) return;
+    
+    if (isLoading) {
+        button.dataset.originalText = button.textContent;
+        button.disabled = true;
+        button.classList.add('loading');
+        button.innerHTML = '<span class="spinner"></span> Processing...';
+    } else {
+        button.disabled = false;
+        button.classList.remove('loading');
+        button.textContent = originalText || button.dataset.originalText || button.textContent;
+    }
+}
+
 // Event listeners
 document.addEventListener('DOMContentLoaded', function() {
+    // Load Venten logo
+    loadVentenLogo();
+    
     // Initialize photo upload
     initializePhotoUpload();
     
@@ -2421,22 +2994,219 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize report generation
     initializeReportGeneration();
     
+    // Calculate button with enhanced feedback
     document.getElementById('calculateBtn').addEventListener('click', function() {
-        const params = getInputValues();
-        const toolLife = params.toolLife || calculateToolLife(params);
-        const costResults = calculateCostPerPart({ ...params, toolLife });
-        displayResults(params, costResults);
+        const button = this;
+        const originalText = button.textContent;
+        
+        try {
+            // Set loading state
+            setButtonLoading('calculateBtn', true, originalText);
+            
+            // Get and validate inputs
+            const params = getInputValues();
+            const validationErrors = validateInputs(params);
+            
+            if (validationErrors.length > 0) {
+                setButtonLoading('calculateBtn', false, originalText);
+                showToast(`⚠️ Please fix errors: ${validationErrors[0]}`, 'error', 5000);
+                
+                // Highlight problematic fields
+                validationErrors.forEach(error => {
+                    if (error.includes('diameter')) {
+                        document.getElementById('toolDiameter')?.classList.add('error-field');
+                    } else if (error.includes('cutting speed')) {
+                        document.getElementById('cuttingSpeed')?.classList.add('error-field');
+                    } else if (error.includes('feed')) {
+                        document.getElementById('feedRate')?.classList.add('error-field');
+                    } else if (error.includes('depth')) {
+                        document.getElementById('depthOfCut')?.classList.add('error-field');
+                    } else if (error.includes('width')) {
+                        document.getElementById('widthOfCut')?.classList.add('error-field');
+                    } else if (error.includes('teeth')) {
+                        document.getElementById('numberOfTeeth')?.classList.add('error-field');
+                    } else if (error.includes('Tool cost')) {
+                        document.getElementById('toolCost')?.classList.add('error-field');
+                    } else if (error.includes('Machine')) {
+                        document.getElementById('machineHourlyRate')?.classList.add('error-field');
+                    }
+                });
+                
+                return;
+            }
+            
+            // Remove error highlights
+            document.querySelectorAll('.error-field').forEach(el => el.classList.remove('error-field'));
+            
+            // Simulate processing delay for better UX
+            setTimeout(() => {
+                try {
+                    const toolLife = params.toolLife || calculateToolLife(params);
+                    const costResults = calculateCostPerPart({ ...params, toolLife });
+                    
+                    // Scroll to results
+                    document.getElementById('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    
+                    // Display results
+                    displayResults(params, costResults);
+                    
+                    // Show success message
+                    setButtonLoading('calculateBtn', false, originalText);
+                    showToast('✅ Calculation completed successfully!', 'success', 3000);
+                    
+                    // Add success animation to results container
+                    const resultsContainer = document.getElementById('results');
+                    resultsContainer.classList.add('results-animate');
+                    setTimeout(() => resultsContainer.classList.remove('results-animate'), 1000);
+                    
+                } catch (error) {
+                    setButtonLoading('calculateBtn', false, originalText);
+                    showToast(`❌ Calculation error: ${error.message}`, 'error', 5000);
+                    console.error('Calculation error:', error);
+                }
+            }, 300);
+            
+        } catch (error) {
+            setButtonLoading('calculateBtn', false, originalText);
+            showToast(`❌ Error: ${error.message}`, 'error', 5000);
+            console.error('Error:', error);
+        }
     });
     
+    // Compare Tools button with enhanced feedback
     document.getElementById('compareBtn').addEventListener('click', function() {
-        addToComparison();
+        const button = this;
+        const originalText = button.textContent;
+        
+        try {
+            // Set loading state
+            setButtonLoading('compareBtn', true, originalText);
+            
+            // Get and validate inputs
+            const params = getInputValues();
+            const validationErrors = validateInputs(params);
+            
+            if (validationErrors.length > 0) {
+                setButtonLoading('compareBtn', false, originalText);
+                showToast(`⚠️ Please fix errors before comparing: ${validationErrors[0]}`, 'error', 5000);
+                return;
+            }
+            
+            // Simulate processing delay
+            setTimeout(() => {
+                try {
+                    const toolLife = params.toolLife || calculateToolLife(params);
+                    const costResults = calculateCostPerPart({ ...params, toolLife });
+                    
+                    // Create tool name for comparison
+                    let toolName = `Tool ${toolComparisons.length + 1}`;
+                    if (params.toolNameModel) {
+                        toolName = params.toolNameModel;
+                        if (params.toolBrand) {
+                            toolName = `${params.toolBrand.charAt(0).toUpperCase() + params.toolBrand.slice(1)} ${toolName}`;
+                        }
+                    } else if (params.toolBrand) {
+                        toolName = `${params.toolBrand.charAt(0).toUpperCase() + params.toolBrand.slice(1)} ${toolName}`;
+                    } else if (params.partName) {
+                        toolName = `${params.partName} - ${toolName}`;
+                    }
+                    
+                    // Add to comparison
+                    addToComparison();
+                    
+                    // Scroll to comparison section
+                    const comparisonSection = document.getElementById('comparisonSection');
+                    if (comparisonSection.style.display !== 'none') {
+                        comparisonSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                    
+                    // Show success message
+                    setButtonLoading('compareBtn', false, originalText);
+                    showToast(`✅ "${toolName}" added to comparison (${toolComparisons.length} tool${toolComparisons.length > 1 ? 's' : ''})`, 'success', 3000);
+                    
+                    // Highlight comparison section
+                    comparisonSection.classList.add('highlight-section');
+                    setTimeout(() => comparisonSection.classList.remove('highlight-section'), 2000);
+                    
+                } catch (error) {
+                    setButtonLoading('compareBtn', false, originalText);
+                    showToast(`❌ Error adding tool: ${error.message}`, 'error', 5000);
+                    console.error('Comparison error:', error);
+                }
+            }, 300);
+            
+        } catch (error) {
+            setButtonLoading('compareBtn', false, originalText);
+            showToast(`❌ Error: ${error.message}`, 'error', 5000);
+            console.error('Error:', error);
+        }
     });
     
+    // Clear comparison button
     document.getElementById('clearComparisonBtn').addEventListener('click', function() {
+        if (toolComparisons.length === 0) {
+            showToast('ℹ️ No tools to clear', 'info', 2000);
+            return;
+        }
+        
+        const count = toolComparisons.length;
         clearComparison();
+        showToast(`✅ Cleared ${count} tool${count > 1 ? 's' : ''} from comparison`, 'success', 3000);
     });
     
+    // Add another tool button
     document.getElementById('addToolBtn').addEventListener('click', function() {
-        addToComparison();
+        const button = this;
+        const originalText = button.textContent;
+        
+        try {
+            setButtonLoading('addToolBtn', true, originalText);
+            
+            const params = getInputValues();
+            const validationErrors = validateInputs(params);
+            
+            if (validationErrors.length > 0) {
+                setButtonLoading('addToolBtn', false, originalText);
+                showToast(`⚠️ Please fix errors before adding: ${validationErrors[0]}`, 'error', 5000);
+                return;
+            }
+            
+            setTimeout(() => {
+                try {
+                    addToComparison();
+                    
+                    let toolName = `Tool ${toolComparisons.length}`;
+                    if (params.toolNameModel) {
+                        toolName = params.toolNameModel;
+                    }
+                    
+                    setButtonLoading('addToolBtn', false, originalText);
+                    showToast(`✅ "${toolName}" added (${toolComparisons.length} tool${toolComparisons.length > 1 ? 's' : ''} total)`, 'success', 3000);
+                    
+                    const comparisonSection = document.getElementById('comparisonSection');
+                    comparisonSection.classList.add('highlight-section');
+                    setTimeout(() => comparisonSection.classList.remove('highlight-section'), 2000);
+                    
+                } catch (error) {
+                    setButtonLoading('addToolBtn', false, originalText);
+                    showToast(`❌ Error: ${error.message}`, 'error', 5000);
+                }
+            }, 300);
+            
+        } catch (error) {
+            setButtonLoading('addToolBtn', false, originalText);
+            showToast(`❌ Error: ${error.message}`, 'error', 5000);
+        }
+    });
+    
+    // Remove error highlights on input
+    const inputs = document.querySelectorAll('input, select');
+    inputs.forEach(input => {
+        input.addEventListener('input', function() {
+            this.classList.remove('error-field');
+        });
+        input.addEventListener('change', function() {
+            this.classList.remove('error-field');
+        });
     });
 });

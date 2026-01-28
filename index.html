@@ -202,8 +202,8 @@
                             <button type="button" class="modal-close" id="closeCropModal">&times;</button>
                         </div>
                         <div class="modal-body">
-                            <div id="cropContainer" style="max-width: 100%; max-height: 500px;">
-                                <img id="cropImage" style="max-width: 100%; display: block;">
+                            <div id="cropContainer" style="max-width: 100%; max-height: min(500px, 70vh);">
+                                <img id="cropImage" style="max-width: 100%; max-height: min(500px, 70vh); display: block; object-fit: contain;">
                             </div>
                         </div>
                         <div class="modal-footer">
@@ -363,7 +363,7 @@
             <div class="card results-section">
                 <h2>Engineering Analysis & Results</h2>
                 
-                <div id="results" class="results-container">
+                <div id="results" class="results-container" style="flex: 1; min-height: 0;">
                     <div class="result-placeholder">
                         <p>Enter parameters and click "Calculate" to see engineering analysis</p>
                     </div>
@@ -472,21 +472,22 @@
         </div>
 
         <footer>
-            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px;">
-                <div style="flex: 1; min-width: 200px;">
-                    <p style="margin-bottom: 10px;">Based on ISO 8688-2:1989 - Tool life testing in milling Part 2: End milling</p>
-                    <p style="font-size: 0.85rem; opacity: 0.9;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                <div style="flex: 1; min-width: 180px;">
+                    <p style="margin-bottom: 4px; font-size: 0.75rem;">Based on ISO 8688-2:1989 - Tool life testing in milling Part 2: End milling</p>
+                    <p style="font-size: 0.7rem; opacity: 0.9;">
                         Developed by <a href="mailto:laurisoosaar@gmail.com" style="color: white; text-decoration: underline;">Yrgel</a>
                     </p>
                 </div>
-                <div style="flex: 1; text-align: right; min-width: 200px;">
+                <div style="flex: 1; text-align: right; min-width: 180px;">
                     <a href="https://www.venten.ee/" target="_blank" rel="noopener noreferrer" style="display: inline-block; text-decoration: none;">
                         <img id="ventenLogo" 
-                             src="https://www.venten.ee/wp-content/themes/venten/images/logo.png" 
+                             src="" 
                              alt="Venten Logo" 
-                             style="max-height: 50px; width: auto; opacity: 0.9; transition: opacity 0.2s; filter: brightness(0) invert(1);"
-                             onerror="this.style.display='none'; document.getElementById('ventenLogoText').style.display='inline-block';">
-                        <span id="ventenLogoText" style="display: none; color: white; font-weight: 600; font-size: 1.2rem; letter-spacing: 2px;">VENTEN</span>
+                             style="max-height: 40px; width: auto; opacity: 0.9; transition: opacity 0.2s; filter: brightness(0) invert(1); display: none;"
+                             onerror="this.style.display='none'; document.getElementById('ventenLogoText').style.display='inline-block';"
+                             onload="this.style.display='inline-block';">
+                        <span id="ventenLogoText" style="display: inline-block; color: white; font-weight: 600; font-size: 1rem; letter-spacing: 2px;">VENTEN</span>
                     </a>
                 </div>
             </div>
