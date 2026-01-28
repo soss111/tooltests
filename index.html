@@ -3,17 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Professional CNC tool selection and engineering analysis calculator based on ISO 8688-2 standards. Calculate tool life, cost optimization, OEE analysis, and compare multiple tools for optimal machining performance.">
+    <meta name="theme-color" content="#2563eb">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="CNC Tool Calc">
     <title>CNC Tool Selection Calculator</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚙️</text></svg>">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect width='180' height='180' fill='%232563eb' rx='20'/><text x='50%' y='50%' font-size='130' text-anchor='middle' dominant-baseline='central' fill='white'>⚙️</text></svg>">
+    <link rel="manifest" href="manifest.json">
     <link rel="stylesheet" href="styles.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cropperjs@1.5.13/dist/cropper.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/cropperjs@1.5.13/dist/cropper.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/exif-js@2.3.0/exif.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/emailjs-com@3.2.0/dist/email.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <!-- Defer non-critical CSS -->
+    <link rel="preload" href="https://cdn.jsdelivr.net/npm/cropperjs@1.5.13/dist/cropper.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cropperjs@1.5.13/dist/cropper.min.css"></noscript>
 </head>
 <body>
     <div class="container">
@@ -24,9 +26,9 @@
         </header>
 
         <div class="calculator-grid">
-            <!-- Client & Project Information Section -->
-            <div class="card client-section">
-                <h2>Client & Project Information</h2>
+            <!-- Client Information Block -->
+            <div class="card client-section data-block">
+                <h2>👤 Client Information</h2>
                 
                 <div class="form-group">
                     <label for="clientName">Client Name</label>
@@ -44,10 +46,15 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="expertName">Expert Name</label>
-                    <input type="text" id="expertName" placeholder="Enter expert/engineer name">
+                    <label for="expertName">Our Expert Name</label>
+                    <input type="text" id="expertName" placeholder="Enter our expert name">
                 </div>
+            </div>
 
+            <!-- Machine Information Block -->
+            <div class="card client-section data-block">
+                <h2>🏭 Machine Information</h2>
+                
                 <div class="form-group">
                     <label for="machineName">Machine Name</label>
                     <input type="text" id="machineName" placeholder="Enter CNC machine name/model">
@@ -75,6 +82,26 @@
                 </div>
 
                 <div class="form-group">
+                    <label for="machineWorkhourCost">Machine Workhour Cost (€/hour)</label>
+                    <input type="number" id="machineWorkhourCost" min="1" max="500" value="50" step="1">
+                </div>
+
+                <div class="form-group">
+                    <label for="machineStopCost">Machine Stop/Downtime Cost (€/hour)</label>
+                    <input type="number" id="machineStopCost" min="0" max="500" value="50" step="1">
+                </div>
+
+                <div class="form-group">
+                    <label for="theoreticalPartWorktime">Theoretical Part Worktime (min)</label>
+                    <input type="number" id="theoreticalPartWorktime" min="0.1" max="1000" value="" step="0.1" placeholder="Theoretical worktime per part">
+                </div>
+            </div>
+
+            <!-- Part Information Block -->
+            <div class="card client-section data-block">
+                <h2>📦 Part Information</h2>
+                
+                <div class="form-group">
                     <label for="partName">Part/Detail Name</label>
                     <input type="text" id="partName" placeholder="Enter part or detail name">
                 </div>
@@ -97,26 +124,11 @@
                     <label for="batchSize">Batch/Lot Size</label>
                     <input type="number" id="batchSize" min="1" value="1" step="1" placeholder="Number of parts in batch">
                 </div>
-
-                <div class="form-group">
-                    <label for="theoreticalPartWorktime">Theoretical Part Worktime (min)</label>
-                    <input type="number" id="theoreticalPartWorktime" min="0.1" max="1000" value="" step="0.1" placeholder="Theoretical worktime per part">
-                </div>
-
-                <div class="form-group">
-                    <label for="machineWorkhourCost">Machine Workhour Cost (€/hour)</label>
-                    <input type="number" id="machineWorkhourCost" min="1" max="500" value="50" step="1">
-                </div>
-
-                <div class="form-group">
-                    <label for="machineStopCost">Machine Stop/Downtime Cost (€/hour)</label>
-                    <input type="number" id="machineStopCost" min="0" max="500" value="50" step="1">
-                </div>
             </div>
 
-            <!-- Production & Cost Parameters Section -->
-            <div class="card client-section">
-                <h2>Production & Cost Parameters</h2>
+            <!-- Production Parameters Block -->
+            <div class="card client-section data-block">
+                <h2>📊 Production Parameters</h2>
                 
                 <div class="form-group">
                     <label for="partsPerBatch">Parts per Batch</label>
@@ -132,7 +144,12 @@
                     <label for="annualSolutions">Annual Solutions</label>
                     <input type="number" id="annualSolutions" min="1" value="6" step="1">
                 </div>
+            </div>
 
+            <!-- Cost Parameters Block -->
+            <div class="card client-section data-block">
+                <h2>💰 Cost Parameters</h2>
+                
                 <div class="form-group">
                     <label for="machineCostPerHour">Machine Cost per Hour (€/hour)</label>
                     <input type="number" id="machineCostPerHour" min="1" max="500" value="50" step="1">
@@ -152,7 +169,12 @@
                     <label for="machineStopDowntimeCost">Machine Stop/Downtime Cost (€/hour)</label>
                     <input type="number" id="machineStopDowntimeCost" min="0" max="500" value="50" step="1">
                 </div>
+            </div>
 
+            <!-- OEE Parameters Block -->
+            <div class="card client-section data-block">
+                <h2>📈 OEE Parameters</h2>
+                
                 <div class="form-group">
                     <label for="defectsRate">Defects Rate (%)</label>
                     <input type="number" id="defectsRate" min="0" max="100" value="2" step="0.1">
@@ -181,7 +203,7 @@
                 </div>
 
                 <div class="form-group">
-                    <label>Import from Catalogue</label>
+                    <label for="catalogueFile">Import from Catalogue</label>
                     <div style="display: flex; gap: 6px; margin-bottom: 6px;">
                         <input type="file" id="catalogueFile" accept=".csv,.json,.xlsx,.xls" style="display: none;">
                         <button type="button" id="importCatalogueBtn" class="btn-outline" style="flex: 1; margin: 0; padding: 8px; font-size: 0.85rem;">
@@ -615,7 +637,96 @@
     </div>
 
     <!-- Tesseract.js for OCR -->
-    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    <!-- Main calculator script - load immediately -->
     <script src="calculator.js"></script>
+    
+    <!-- Lazy load libraries on demand -->
+    <script>
+        // Library loader utility
+        window.loadLibrary = function(url, type = 'script') {
+            return new Promise((resolve, reject) => {
+                if (type === 'script') {
+                    const script = document.createElement('script');
+                    script.src = url;
+                    script.async = true;
+                    script.onload = resolve;
+                    script.onerror = reject;
+                    document.head.appendChild(script);
+                } else if (type === 'style') {
+                    const link = document.createElement('link');
+                    link.rel = 'stylesheet';
+                    link.href = url;
+                    link.onload = resolve;
+                    link.onerror = reject;
+                    document.head.appendChild(link);
+                }
+            });
+        };
+
+        // Load Chart.js when needed (for charts)
+        window.loadChartJS = function() {
+            if (window.Chart) return Promise.resolve();
+            return window.loadLibrary('https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js');
+        };
+
+        // Load photo editing libraries when needed
+        window.loadPhotoLibraries = function() {
+            const promises = [];
+            if (!window.Cropper) {
+                promises.push(window.loadLibrary('https://cdn.jsdelivr.net/npm/cropperjs@1.5.13/dist/cropper.min.css', 'style'));
+                promises.push(window.loadLibrary('https://cdn.jsdelivr.net/npm/cropperjs@1.5.13/dist/cropper.min.js'));
+            }
+            if (!window.EXIF) {
+                promises.push(window.loadLibrary('https://cdn.jsdelivr.net/npm/exif-js@2.3.0/exif.js'));
+            }
+            return Promise.all(promises);
+        };
+
+        // Load catalogue import libraries when needed
+        window.loadCatalogueLibraries = function() {
+            const promises = [];
+            if (!window.Papa) {
+                promises.push(window.loadLibrary('https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js'));
+            }
+            if (!window.XLSX) {
+                promises.push(window.loadLibrary('https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js'));
+            }
+            return Promise.all(promises);
+        };
+
+        // Load PDF generation libraries when needed
+        window.loadPDFLibraries = function() {
+            const promises = [];
+            if (!window.jspdf) {
+                promises.push(window.loadLibrary('https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js'));
+            }
+            if (!window.html2canvas) {
+                promises.push(window.loadLibrary('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js'));
+            }
+            if (!window.EmailJS) {
+                promises.push(window.loadLibrary('https://cdn.jsdelivr.net/npm/emailjs-com@3.2.0/dist/email.min.js'));
+            }
+            return Promise.all(promises);
+        };
+
+        // Load OCR library when needed
+        window.loadOCRLibrary = function() {
+            if (window.Tesseract) return Promise.resolve();
+            return window.loadLibrary('https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js');
+        };
+
+        // Register Service Worker for PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                    .then((registration) => {
+                        console.log('Service Worker registered successfully:', registration.scope);
+                    })
+                    .catch((error) => {
+                        console.log('Service Worker registration failed:', error);
+                    });
+            });
+        }
+    </script>
 </body>
 </html>

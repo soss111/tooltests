@@ -487,7 +487,11 @@ function getBadgeClass(value, thresholds) {
 }
 
 // Display results
-function displayResults(params, results) {
+async function displayResults(params, results) {
+    // Load Chart.js if needed (before creating charts)
+    if (!window.Chart && typeof window.loadChartJS === 'function') {
+        await window.loadChartJS();
+    }
     const resultsContainer = document.getElementById('results');
     
     const toolLife = params.toolLife || calculateToolLife(params);
@@ -527,7 +531,7 @@ function displayResults(params, results) {
                 ${params.machineName ? `<div class="result-label">Machine: <strong>${params.machineName}</strong></div>` : ''}
                 ${params.applicationType ? `<div class="result-label">Application: <strong>${params.applicationType}</strong></div>` : ''}
                 ${params.customerContact ? `<div class="result-label">Contact: <strong>${params.customerContact}</strong></div>` : ''}
-                ${params.expertName ? `<div class="result-label">Expert: <strong>${params.expertName}</strong></div>` : ''}
+                ${params.expertName ? `<div class="result-label">Our Expert: <strong>${params.expertName}</strong></div>` : ''}
                 ${params.batchSize > 1 ? `<div class="result-label">Batch Size: <strong>${params.batchSize} parts</strong></div>` : ''}
                 ${params.theoreticalPartWorktime ? `<div class="result-label">Theoretical Part Worktime: <strong>${params.theoreticalPartWorktime} min</strong></div>` : ''}
                 ${params.machineWorkhourCost ? `<div class="result-label">Machine Workhour Cost: <strong>${formatCurrency(params.machineWorkhourCost)}/hour</strong></div>` : ''}
@@ -569,10 +573,30 @@ function displayResults(params, results) {
     const netToolCost = params.toolCost - (params.toolRemainingCost || 0);
     
     let html = projectInfoHtml + `
-        <div class="result-item">
-            <h3>💰 Cost Analysis</h3>
-            <div class="result-label">Total Cost per Part</div>
-            <div class="result-value">${formatCurrency(costResults.totalCostPerPart)}</div>
+        <div class="result-item cost-analysis-card">
+            <div class="result-header-visual">
+                <span class="result-icon">💰</span>
+                <h3>Cost Analysis</h3>
+            </div>
+            <div class="result-value-card">
+                <div class="result-label">Total Cost per Part</div>
+                <div class="result-value-large">${formatCurrency(costResults.totalCostPerPart)}</div>
+                ${toolComparisons.length > 0 ? `
+                    <div class="result-comparison-badge">
+                        ${(() => {
+                            const bestComparisonCost = Math.min(...toolComparisons.map(t => t.totalCostPerPart));
+                            const vsBest = costResults.totalCostPerPart - bestComparisonCost;
+                            if (costResults.totalCostPerPart === bestComparisonCost) {
+                                return '<span class="best-indicator">🏆 Best in comparison</span>';
+                            } else if (vsBest > 0) {
+                                const percentDiff = ((vsBest / bestComparisonCost) * 100).toFixed(1);
+                                return `<span class="worse-indicator">+${formatCurrency(vsBest)} (${percentDiff}% more than best)</span>`;
+                            }
+                            return '';
+                        })()}
+                    </div>
+                ` : ''}
+            </div>
             <div class="result-description">
                 <strong>Breakdown:</strong><br>
                 • Tool cost: ${formatCurrency(costResults.toolCostPerPart)}${params.toolRemainingCost > 0 ? ` (Net: ${formatCurrency(params.toolCost)} - ${formatCurrency(params.toolRemainingCost)} = ${formatCurrency(netToolCost)})` : ''}<br>
@@ -1127,7 +1151,7 @@ function addToComparison() {
     };
     
     toolComparisons.push(toolData);
-    updateComparisonTable();
+    updateComparisonTable().catch(error => console.error('Error updating comparison table:', error));
 }
 
 // Display tool life chart
@@ -1307,7 +1331,11 @@ function displayCostSavingsChart(params, costResults) {
 }
 
 // Update comparison table
-function updateComparisonTable() {
+async function updateComparisonTable() {
+    // Load Chart.js if needed (before creating charts)
+    if (!window.Chart && typeof window.loadChartJS === 'function') {
+        await window.loadChartJS();
+    }
     const comparisonSection = document.getElementById('comparisonSection');
     const comparisonResults = document.getElementById('comparisonResults');
     
@@ -1323,36 +1351,187 @@ function updateComparisonTable() {
     const bestToolLife = Math.max(...toolComparisons.map(t => t.toolLife));
     const bestMRR = Math.max(...toolComparisons.map(t => t.mrr));
     
+    // Find best tool (lowest cost)
+    const bestTool = toolComparisons.find(t => t.totalCostPerPart === bestTotalCost);
+    const worstTool = toolComparisons.reduce((worst, current) => 
+        current.totalCostPerPart > worst.totalCostPerPart ? current : worst
+    );
+    
+    // Calculate savings and improvements
+    const costDifference = worstTool.totalCostPerPart - bestTool.totalCostPerPart;
+    const costSavingsPercent = ((costDifference / worstTool.totalCostPerPart) * 100).toFixed(1);
+    const toolLifeImprovement = bestToolLife - Math.min(...toolComparisons.map(t => t.toolLife));
+    const toolLifeImprovementPercent = toolLifeImprovement > 0 ? 
+        ((toolLifeImprovement / Math.min(...toolComparisons.map(t => t.toolLife))) * 100).toFixed(1) : 0;
+    const mrrImprovement = bestMRR - Math.min(...toolComparisons.map(t => t.mrr));
+    const mrrImprovementPercent = mrrImprovement > 0 ? 
+        ((mrrImprovement / Math.min(...toolComparisons.map(t => t.mrr))) * 100).toFixed(1) : 0;
+    
     // Calculate savings
     calculateAndDisplaySavings();
     
     // Display comparison charts
     displayComparisonCharts();
     
+    // Create visual summary cards
     let html = `
-        <table class="comparison-table">
-            <thead>
-                <tr>
-                    <th>Tool</th>
-                    <th>Brand</th>
-                    <th>Type</th>
-                    <th>Part</th>
-                    <th>Material</th>
-                    <th>Coating</th>
-                    <th>Cost/Part</th>
-                    <th>Tool Life</th>
-                    <th>MRR</th>
-                    <th>Tool Cost</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
+        <div class="comparison-summary-cards">
+            <div class="summary-card best-tool-card">
+                <div class="summary-card-header">
+                    <span class="summary-icon">🏆</span>
+                    <h3>Best Tool</h3>
+                </div>
+                <div class="summary-card-content">
+                    <div class="summary-tool-name">${bestTool.name || 'Tool 1'}</div>
+                    <div class="summary-metrics">
+                        <div class="summary-metric">
+                            <span class="metric-label">Cost/Part</span>
+                            <span class="metric-value best">${formatCurrency(bestTool.totalCostPerPart)}</span>
+                        </div>
+                        <div class="summary-metric">
+                            <span class="metric-label">Tool Life</span>
+                            <span class="metric-value best">${bestTool.toolLife} min</span>
+                        </div>
+                        <div class="summary-metric">
+                            <span class="metric-label">MRR</span>
+                            <span class="metric-value best">${formatNumber(bestTool.mrr, 'mm³/min')}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="summary-card savings-card">
+                <div class="summary-card-header">
+                    <span class="summary-icon">💰</span>
+                    <h3>Potential Savings</h3>
+                </div>
+                <div class="summary-card-content">
+                    <div class="savings-amount">${formatCurrency(costDifference)}</div>
+                    <div class="savings-percent">${costSavingsPercent}% reduction</div>
+                    <div class="savings-details">
+                        <div>vs. most expensive tool</div>
+                        <div class="savings-breakdown">
+                            <span>Per part: ${formatCurrency(costDifference)}</span>
+                            ${bestTool.batchSize > 1 ? `<span>Per batch: ${formatCurrency(costDifference * bestTool.batchSize)}</span>` : ''}
+                            <span>Per 100 parts: ${formatCurrency(costDifference * 100)}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="summary-card improvements-card">
+                <div class="summary-card-header">
+                    <span class="summary-icon">📈</span>
+                    <h3>Performance Improvements</h3>
+                </div>
+                <div class="summary-card-content">
+                    <div class="improvement-item">
+                        <span class="improvement-label">Tool Life</span>
+                        <span class="improvement-value">+${toolLifeImprovement.toFixed(1)} min</span>
+                        <span class="improvement-percent">(${toolLifeImprovementPercent}% better)</span>
+                    </div>
+                    <div class="improvement-item">
+                        <span class="improvement-label">Material Removal Rate</span>
+                        <span class="improvement-value">+${formatNumber(mrrImprovement, 'mm³/min')}</span>
+                        <span class="improvement-percent">(${mrrImprovementPercent}% better)</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="comparison-tools-grid">
+    `;
+    
+    // Create visual cards for each tool
+    toolComparisons.forEach((tool, index) => {
+        const isBest = tool.totalCostPerPart === bestTotalCost;
+        const costVsBest = tool.totalCostPerPart - bestTotalCost;
+        const costVsBestPercent = bestTotalCost > 0 ? ((costVsBest / bestTotalCost) * 100).toFixed(1) : 0;
+        const toolLifeVsBest = tool.toolLife - bestToolLife;
+        const mrrVsBest = tool.mrr - bestMRR;
+        
+        html += `
+            <div class="tool-comparison-card ${isBest ? 'best-tool-highlight' : ''}" data-tool-id="${tool.id}">
+                ${isBest ? '<div class="best-tool-badge">🏆 BEST CHOICE</div>' : ''}
+                <div class="tool-card-header">
+                    <h4 class="tool-card-name">${tool.name}</h4>
+                    ${tool.toolBrand ? `<div class="tool-card-brand">${tool.toolBrand.charAt(0).toUpperCase() + tool.toolBrand.slice(1)}</div>` : ''}
+                </div>
+                <div class="tool-card-body">
+                    <div class="tool-metric-row">
+                        <span class="tool-metric-label">💰 Cost per Part</span>
+                        <span class="tool-metric-value ${tool.totalCostPerPart === bestTotalCost ? 'best-metric' : costVsBest > 0 ? 'worse-metric' : ''}">
+                            ${formatCurrency(tool.totalCostPerPart)}
+                            ${!isBest && costVsBest > 0 ? `<span class="metric-diff">+${formatCurrency(costVsBest)} (${costVsBestPercent}%)</span>` : ''}
+                            ${tool.totalCostPerPart === bestTotalCost ? '<span class="best-badge">✓ Best</span>' : ''}
+                        </span>
+                    </div>
+                    <div class="tool-metric-row">
+                        <span class="tool-metric-label">⏱️ Tool Life</span>
+                        <span class="tool-metric-value ${tool.toolLife === bestToolLife ? 'best-metric' : toolLifeVsBest < 0 ? 'worse-metric' : ''}">
+                            ${tool.toolLife} min
+                            ${tool.toolLife === bestToolLife ? '<span class="best-badge">✓ Best</span>' : toolLifeVsBest < 0 ? `<span class="metric-diff">${toolLifeVsBest.toFixed(1)} min</span>` : ''}
+                        </span>
+                    </div>
+                    <div class="tool-metric-row">
+                        <span class="tool-metric-label">⚡ MRR</span>
+                        <span class="tool-metric-value ${tool.mrr === bestMRR ? 'best-metric' : mrrVsBest < 0 ? 'worse-metric' : ''}">
+                            ${formatNumber(tool.mrr, 'mm³/min')}
+                            ${tool.mrr === bestMRR ? '<span class="best-badge">✓ Best</span>' : mrrVsBest < 0 ? `<span class="metric-diff">${formatNumber(mrrVsBest, 'mm³/min')}</span>` : ''}
+                        </span>
+                    </div>
+                    <div class="tool-metric-row">
+                        <span class="tool-metric-label">🔧 Tool Cost</span>
+                        <span class="tool-metric-value">${formatCurrency(tool.toolCost)}</span>
+                    </div>
+                    <div class="tool-card-details">
+                        <div class="tool-detail-item">
+                            <span>Type:</span> <strong>${tool.toolType ? tool.toolType.replace(/([A-Z])/g, ' $1').trim() : 'N/A'}</strong>
+                        </div>
+                        <div class="tool-detail-item">
+                            <span>Material:</span> <strong>${tool.toolMaterial}</strong>
+                        </div>
+                        <div class="tool-detail-item">
+                            <span>Coating:</span> <strong>${tool.toolCoating}</strong>
+                        </div>
+                    </div>
+                </div>
+                <div class="tool-card-actions">
+                    <button class="btn-edit-tool" data-tool-id="${tool.id}" title="Edit tool parameters">✏️ Edit</button>
+                    <button class="btn-delete-tool" data-tool-id="${tool.id}" title="Remove tool from comparison">🗑️ Delete</button>
+                </div>
+            </div>
+        `;
+    });
+    
+    html += `
+        </div>
+        
+        <div class="comparison-table-container">
+            <h3 style="margin-bottom: 10px; color: var(--text-primary);">📊 Detailed Comparison Table</h3>
+            <table class="comparison-table">
+                <thead>
+                    <tr>
+                        <th>Tool</th>
+                        <th>Brand</th>
+                        <th>Type</th>
+                        <th>Part</th>
+                        <th>Material</th>
+                        <th>Coating</th>
+                        <th>Cost/Part</th>
+                        <th>Tool Life</th>
+                        <th>MRR</th>
+                        <th>Tool Cost</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
     `;
     
     toolComparisons.forEach((tool, index) => {
         html += `
-            <tr data-tool-id="${tool.id}">
-                <td>${tool.name}</td>
+            <tr data-tool-id="${tool.id}" class="${tool.totalCostPerPart === bestTotalCost ? 'best-tool-row' : ''}">
+                <td><strong>${tool.name}</strong>${tool.totalCostPerPart === bestTotalCost ? ' 🏆' : ''}</td>
                 <td>${tool.toolBrand ? tool.toolBrand.charAt(0).toUpperCase() + tool.toolBrand.slice(1) : 'N/A'}</td>
                 <td>${tool.toolType ? tool.toolType.replace(/([A-Z])/g, ' $1').trim() : 'N/A'}</td>
                 <td>${tool.partName || 'N/A'}</td>
@@ -1377,8 +1556,9 @@ function updateComparisonTable() {
     });
     
     html += `
-            </tbody>
-        </table>
+                </tbody>
+            </table>
+        </div>
     `;
     
     comparisonResults.innerHTML = html;
@@ -1542,7 +1722,7 @@ function updateToolInComparison(toolId) {
     window.editingToolId = null;
     
     // Recalculate and update display
-    updateComparisonTable();
+    updateComparisonTable().catch(error => console.error('Error updating comparison table:', error));
     calculateAndDisplaySavings();
     displayComparisonCharts();
     
@@ -1830,7 +2010,7 @@ function clearComparison() {
     }
     
     toolComparisons = [];
-    updateComparisonTable();
+    updateComparisonTable().catch(error => console.error('Error updating comparison table:', error));
 }
 
 // Save current tool and clear form for new tool entry
@@ -1907,25 +2087,17 @@ function saveAndClearForm() {
     // Clear photo
     currentToolPhoto = null;
     currentPhotoDate = null;
-    const photoPreviewContainer = document.getElementById('photoPreviewContainer');
-    if (photoPreviewContainer) {
-        photoPreviewContainer.style.display = 'none';
+    const photoPreviewContainerEl = document.getElementById('photoPreviewContainer');
+    if (photoPreviewContainerEl) {
+        photoPreviewContainerEl.style.display = 'none';
     }
-    
-    // Clear photo
-    currentToolPhoto = null;
-    currentPhotoDate = null;
-    const photoPreview = document.getElementById('photoPreview');
-    if (photoPreview) {
-        photoPreview.innerHTML = '<p style="color: #64748b;">No photo uploaded</p>';
+    const photoPreviewEl = document.getElementById('photoPreview');
+    if (photoPreviewEl) {
+        photoPreviewEl.innerHTML = '<p style="color: #64748b;">No photo uploaded</p>';
     }
-    const photoPreviewContainer = document.getElementById('photoPreviewContainer');
-    if (photoPreviewContainer) {
-        photoPreviewContainer.style.display = 'none';
-    }
-    const fileInput = document.getElementById('toolPhoto');
-    if (fileInput) {
-        fileInput.value = '';
+    const toolPhotoFileInput = document.getElementById('toolPhoto');
+    if (toolPhotoFileInput) {
+        toolPhotoFileInput.value = '';
     }
     
     // Clear results
@@ -1956,6 +2128,7 @@ function saveAndClearForm() {
 
 // Machine label OCR functions
 function initializeMachineLabelUpload() {
+    console.log('Initializing machine label upload...');
     const fileInput = document.getElementById('machineLabelPhoto');
     const uploadBtn = document.getElementById('uploadMachineLabelBtn');
     const previewContainer = document.getElementById('machineLabelPreviewContainer');
@@ -1965,34 +2138,91 @@ function initializeMachineLabelUpload() {
     const extractedDataDiv = document.getElementById('extractedData');
     const extractedDataContent = document.getElementById('extractedDataContent');
     
-    if (!fileInput || !uploadBtn) return;
+    if (!fileInput || !uploadBtn) {
+        console.error('Machine label upload elements not found:', { fileInput: !!fileInput, uploadBtn: !!uploadBtn });
+        return;
+    }
     
-    // Upload button click
-    uploadBtn.addEventListener('click', function() {
-        fileInput.click();
+    if (!previewContainer || !previewImg) {
+        console.error('Machine label preview elements not found');
+        return;
+    }
+    
+    console.log('Machine label upload elements found, setting up event listeners');
+    
+    // Upload button click - use both click and mousedown to ensure it works
+    uploadBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log('Upload button clicked - machine label');
+        try {
+            if (fileInput) {
+                fileInput.click();
+            } else {
+                console.error('File input not found');
+            }
+        } catch (error) {
+            console.error('Error clicking file input:', error);
+            alert('Error opening file dialog. Please check console for details.');
+        }
+        return false;
+    });
+    
+    // Also try mousedown as fallback
+    uploadBtn.addEventListener('mousedown', function(e) {
+        e.preventDefault();
+        console.log('Upload button mousedown - machine label');
     });
     
     // File input change
     fileInput.addEventListener('change', async function(e) {
         const file = e.target.files[0];
-        if (!file) return;
+        if (!file) {
+            console.log('No file selected');
+            return;
+        }
+        
+        console.log('File selected:', file.name, file.type);
         
         if (!file.type.startsWith('image/')) {
             showToast('Please select an image file', 'error');
+            fileInput.value = '';
             return;
         }
         
         // Show preview
         const reader = new FileReader();
+        reader.onerror = function(error) {
+            console.error('FileReader error:', error);
+            showToast('Error reading image file', 'error');
+        };
         reader.onload = function(e) {
-            currentMachineLabelPhoto = e.target.result;
-            previewImg.src = e.target.result;
-            previewContainer.style.display = 'block';
-            ocrStatus.textContent = 'Processing image...';
-            extractedDataDiv.style.display = 'none';
-            
-            // Process OCR
-            processMachineLabelOCR(e.target.result);
+            try {
+                currentMachineLabelPhoto = e.target.result;
+                previewImg.src = e.target.result;
+                previewContainer.style.display = 'block';
+                if (ocrStatus) {
+                    ocrStatus.textContent = 'Processing image...';
+                    ocrStatus.style.color = 'var(--primary-color)';
+                }
+                if (extractedDataDiv) {
+                    extractedDataDiv.style.display = 'none';
+                }
+                
+                // Process OCR
+                if (typeof processMachineLabelOCR === 'function') {
+                    processMachineLabelOCR(e.target.result);
+                } else {
+                    console.error('processMachineLabelOCR function not found');
+                    if (ocrStatus) {
+                        ocrStatus.textContent = 'OCR function not available';
+                        ocrStatus.style.color = 'var(--danger-color)';
+                    }
+                }
+            } catch (error) {
+                console.error('Error processing image:', error);
+                showToast('Error processing image: ' + error.message, 'error');
+            }
         };
         reader.readAsDataURL(file);
     });
@@ -2011,6 +2241,11 @@ function initializeMachineLabelUpload() {
 
 // Process OCR on machine label image
 async function processMachineLabelOCR(imageDataUrl) {
+    // Load OCR library on demand
+    if (typeof window.loadOCRLibrary === 'function') {
+        await window.loadOCRLibrary();
+    }
+    
     const ocrStatus = document.getElementById('ocrStatus');
     const extractedDataDiv = document.getElementById('extractedData');
     const extractedDataContent = document.getElementById('extractedDataContent');
@@ -2208,7 +2443,12 @@ function populateMachineFields(extractedData) {
 }
 
 // Photo upload and crop functions
-function initializePhotoUpload() {
+async function initializePhotoUpload() {
+    console.log('Initializing tool photo upload...');
+    // Load photo libraries on demand
+    if (typeof window.loadPhotoLibraries === 'function') {
+        await window.loadPhotoLibraries();
+    }
     const fileInput = document.getElementById('toolPhoto');
     const uploadBtn = document.getElementById('uploadPhotoBtn');
     const photoPreviewContainer = document.getElementById('photoPreviewContainer');
@@ -2217,66 +2457,151 @@ function initializePhotoUpload() {
     const cropImage = document.getElementById('cropImage');
     const cropContainer = document.getElementById('cropContainer');
     
+    if (!fileInput || !uploadBtn) {
+        console.error('Tool photo upload elements not found:', {
+            fileInput: !!fileInput,
+            uploadBtn: !!uploadBtn
+        });
+        return;
+    }
+    
+    if (!photoPreviewContainer || !photoPreviewImg) {
+        console.error('Tool photo preview elements not found');
+        return;
+    }
+    
+    console.log('Tool photo upload elements found, setting up event listeners');
+    
     // Upload button click
-    uploadBtn.addEventListener('click', function() {
-        fileInput.click();
+    uploadBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log('Upload button clicked - tool photo');
+        try {
+            if (fileInput) {
+                fileInput.click();
+            } else {
+                console.error('File input not found');
+                alert('File input not found. Please refresh the page.');
+            }
+        } catch (error) {
+            console.error('Error clicking file input:', error);
+            alert('Error opening file dialog: ' + error.message);
+        }
+        return false;
     });
     
     // File input change
     fileInput.addEventListener('change', function(e) {
         const file = e.target.files[0];
+        console.log('Tool photo file selected:', file ? file.name : 'none');
         if (file) {
-            handlePhotoUpload(file);
+            try {
+                if (typeof handlePhotoUpload === 'function') {
+                    handlePhotoUpload(file);
+                } else {
+                    console.error('handlePhotoUpload function not found');
+                    alert('Photo upload function not available. Please refresh the page.');
+                }
+            } catch (error) {
+                console.error('Error handling photo upload:', error);
+                alert('Error uploading photo: ' + error.message);
+            }
         }
     });
     
     // Remove photo
-    document.getElementById('removePhotoBtn').addEventListener('click', function() {
-        currentToolPhoto = null;
-        currentPhotoDate = null;
-        fileInput.value = '';
-        photoPreviewContainer.style.display = 'none';
-    });
+    const removePhotoBtn = document.getElementById('removePhotoBtn');
+    if (removePhotoBtn) {
+        removePhotoBtn.addEventListener('click', function() {
+            currentToolPhoto = null;
+            currentPhotoDate = null;
+            if (fileInput) {
+                fileInput.value = '';
+            }
+            if (photoPreviewContainer) {
+                photoPreviewContainer.style.display = 'none';
+            }
+        });
+    }
     
     // Crop photo button
-    document.getElementById('cropPhotoBtn').addEventListener('click', function() {
-        if (currentToolPhoto) {
-            openCropModal();
-        }
-    });
+    const cropPhotoBtn = document.getElementById('cropPhotoBtn');
+    if (cropPhotoBtn) {
+        cropPhotoBtn.addEventListener('click', function() {
+            if (currentToolPhoto) {
+                if (typeof openCropModal === 'function') {
+                    openCropModal();
+                } else {
+                    console.error('openCropModal function not found');
+                }
+            }
+        });
+    }
     
     // Close crop modal
-    document.getElementById('closeCropModal').addEventListener('click', closeCropModal);
-    document.getElementById('cancelCropBtn').addEventListener('click', closeCropModal);
+    const closeCropModalBtn = document.getElementById('closeCropModal');
+    if (closeCropModalBtn) {
+        closeCropModalBtn.addEventListener('click', function() {
+            if (typeof closeCropModal === 'function') {
+                closeCropModal();
+            }
+        });
+    }
+    
+    const cancelCropBtn = document.getElementById('cancelCropBtn');
+    if (cancelCropBtn) {
+        cancelCropBtn.addEventListener('click', function() {
+            if (typeof closeCropModal === 'function') {
+                closeCropModal();
+            }
+        });
+    }
     
     // Apply crop
-    document.getElementById('applyCropBtn').addEventListener('click', function() {
-        if (cropperInstance) {
-            const canvas = cropperInstance.getCroppedCanvas({
-                width: 800,
-                height: 800,
-                imageSmoothingEnabled: true,
-                imageSmoothingQuality: 'high'
-            });
-            
-            canvas.toBlob(function(blob) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    currentToolPhoto = e.target.result;
-                    photoPreviewImg.src = currentToolPhoto;
-                    closeCropModal();
-                };
-                reader.readAsDataURL(blob);
-            }, 'image/jpeg', 0.9);
-        }
-    });
+    const applyCropBtn = document.getElementById('applyCropBtn');
+    if (applyCropBtn) {
+        applyCropBtn.addEventListener('click', function() {
+            if (cropperInstance) {
+                try {
+                    const canvas = cropperInstance.getCroppedCanvas({
+                        width: 800,
+                        height: 800,
+                        imageSmoothingEnabled: true,
+                        imageSmoothingQuality: 'high'
+                    });
+                    
+                    canvas.toBlob(function(blob) {
+                        const reader = new FileReader();
+                        reader.onload = function(e) {
+                            currentToolPhoto = e.target.result;
+                            if (photoPreviewImg) {
+                                photoPreviewImg.src = currentToolPhoto;
+                            }
+                            if (typeof closeCropModal === 'function') {
+                                closeCropModal();
+                            }
+                        };
+                        reader.readAsDataURL(blob);
+                    }, 'image/jpeg', 0.9);
+                } catch (error) {
+                    console.error('Error applying crop:', error);
+                    alert('Error applying crop: ' + error.message);
+                }
+            }
+        });
+    }
     
     // Close modal on outside click
-    cropModal.addEventListener('click', function(e) {
-        if (e.target === cropModal) {
-            closeCropModal();
-        }
-    });
+    if (cropModal) {
+        cropModal.addEventListener('click', function(e) {
+            if (e.target === cropModal) {
+                if (typeof closeCropModal === 'function') {
+                    closeCropModal();
+                }
+            }
+        });
+    }
 }
 
 function handlePhotoUpload(file) {
@@ -2395,7 +2720,12 @@ function closeCropModal() {
 }
 
 // Catalogue import functions
-function initializeCatalogueImport() {
+async function initializeCatalogueImport() {
+    console.log('Initializing catalogue import...');
+    // Load catalogue libraries on demand
+    if (typeof window.loadCatalogueLibraries === 'function') {
+        await window.loadCatalogueLibraries();
+    }
     const fileInput = document.getElementById('catalogueFile');
     const importBtn = document.getElementById('importCatalogueBtn');
     const downloadTemplateBtn = document.getElementById('downloadTemplateBtn');
@@ -2405,45 +2735,129 @@ function initializeCatalogueImport() {
     const applyMappingBtn = document.getElementById('applyMappingBtn');
     const importSelectedBtn = document.getElementById('importSelectedBtn');
     
+    if (!fileInput || !importBtn || !downloadTemplateBtn) {
+        console.error('Catalogue import elements not found:', {
+            fileInput: !!fileInput,
+            importBtn: !!importBtn,
+            downloadTemplateBtn: !!downloadTemplateBtn
+        });
+        return;
+    }
+    
+    console.log('Catalogue import elements found, setting up event listeners');
+    
     // Import button click
-    importBtn.addEventListener('click', function() {
-        fileInput.click();
+    importBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log('Import button clicked');
+        try {
+            if (fileInput) {
+                fileInput.click();
+            } else {
+                console.error('File input not found');
+                alert('File input not found. Please refresh the page.');
+            }
+        } catch (error) {
+            console.error('Error clicking file input:', error);
+            alert('Error opening file dialog: ' + error.message);
+        }
+        return false;
     });
     
     // Download template
-    downloadTemplateBtn.addEventListener('click', function() {
-        downloadCatalogueTemplate();
+    downloadTemplateBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log('Download template button clicked');
+        try {
+            if (typeof downloadCatalogueTemplate === 'function') {
+                downloadCatalogueTemplate();
+            } else {
+                console.error('downloadCatalogueTemplate function not found');
+                alert('Template download function not available. Please refresh the page.');
+            }
+        } catch (error) {
+            console.error('Error downloading template:', error);
+            alert('Error downloading template: ' + error.message);
+        }
+        return false;
     });
     
     // File input change
     fileInput.addEventListener('change', function(e) {
         const file = e.target.files[0];
+        console.log('Catalogue file selected:', file ? file.name : 'none');
         if (file) {
-            handleCatalogueImport(file);
+            try {
+                if (typeof handleCatalogueImport === 'function') {
+                    handleCatalogueImport(file);
+                } else {
+                    console.error('handleCatalogueImport function not found');
+                    alert('Import function not available. Please refresh the page.');
+                }
+            } catch (error) {
+                console.error('Error handling catalogue import:', error);
+                alert('Error importing catalogue: ' + error.message);
+            }
         }
     });
     
     // Close modal
-    closeImportBtn.addEventListener('click', closeImportModal);
-    cancelImportBtn.addEventListener('click', closeImportModal);
-    importModal.addEventListener('click', function(e) {
-        if (e.target === importModal) {
-            closeImportModal();
-        }
-    });
+    if (closeImportBtn) {
+        closeImportBtn.addEventListener('click', function() {
+            if (typeof closeImportModal === 'function') {
+                closeImportModal();
+            }
+        });
+    }
+    if (cancelImportBtn) {
+        cancelImportBtn.addEventListener('click', function() {
+            if (typeof closeImportModal === 'function') {
+                closeImportModal();
+            }
+        });
+    }
+    if (importModal) {
+        importModal.addEventListener('click', function(e) {
+            if (e.target === importModal) {
+                if (typeof closeImportModal === 'function') {
+                    closeImportModal();
+                }
+            }
+        });
+    }
     
     // Apply mapping
-    applyMappingBtn.addEventListener('click', function() {
-        applyFieldMapping();
-    });
+    if (applyMappingBtn) {
+        applyMappingBtn.addEventListener('click', function() {
+            if (typeof applyFieldMapping === 'function') {
+                applyFieldMapping();
+            } else {
+                console.error('applyFieldMapping function not found');
+            }
+        });
+    }
     
     // Import selected tools
-    importSelectedBtn.addEventListener('click', function() {
-        importSelectedTools();
-    });
+    if (importSelectedBtn) {
+        importSelectedBtn.addEventListener('click', function() {
+            if (typeof importSelectedTools === 'function') {
+                importSelectedTools();
+            } else {
+                console.error('importSelectedTools function not found');
+            }
+        });
+    }
 }
 
 function downloadCatalogueTemplate() {
+    if (typeof Papa === 'undefined') {
+        console.error('PapaParse library not loaded');
+        alert('CSV library not loaded. Please refresh the page.');
+        return;
+    }
+    
     const template = {
         brand: 'kennametal',
         type: 'endMill',
@@ -2462,27 +2876,47 @@ function downloadCatalogueTemplate() {
         widthOfCut: 5
     };
     
-    const csv = Papa.unparse([template]);
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', 'tool_catalogue_template.csv');
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    try {
+        const csv = Papa.unparse([template]);
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', 'tool_catalogue_template.csv');
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        console.log('Template downloaded successfully');
+    } catch (error) {
+        console.error('Error downloading template:', error);
+        alert('Error downloading template: ' + error.message);
+    }
 }
 
 function handleCatalogueImport(file) {
+    console.log('Handling catalogue import for file:', file.name);
     const fileName = file.name.toLowerCase();
     const importModal = document.getElementById('catalogueImportModal');
     const importStatus = document.getElementById('importStatus');
+    
+    if (!importModal || !importStatus) {
+        console.error('Import modal elements not found');
+        alert('Import modal not found. Please refresh the page.');
+        return;
+    }
     
     importModal.style.display = 'block';
     importStatus.innerHTML = '<p style="color: var(--primary-color);">Processing catalogue file...</p>';
     
     if (fileName.endsWith('.csv')) {
+        if (typeof Papa === 'undefined') {
+            importStatus.innerHTML = '<p style="color: var(--danger-color);">CSV parsing library not loaded. Please refresh the page.</p>';
+            console.error('PapaParse library not loaded');
+            return;
+        }
+        
         Papa.parse(file, {
             header: true,
             skipEmptyLines: true,
@@ -2506,16 +2940,30 @@ function handleCatalogueImport(file) {
         };
         reader.readAsText(file);
     } else if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
+        if (typeof XLSX === 'undefined') {
+            importStatus.innerHTML = '<p style="color: var(--danger-color);">Excel parsing library not loaded. Please refresh the page.</p>';
+            console.error('XLSX library not loaded');
+            return;
+        }
+        
         const reader = new FileReader();
+        reader.onerror = function(error) {
+            console.error('FileReader error:', error);
+            importStatus.innerHTML = `<p style="color: var(--danger-color);">Error reading Excel file: ${error.message || 'Unknown error'}</p>`;
+        };
         reader.onload = function(e) {
             try {
                 const data = new Uint8Array(e.target.result);
                 const workbook = XLSX.read(data, { type: 'array' });
+                if (!workbook.SheetNames || workbook.SheetNames.length === 0) {
+                    throw new Error('Excel file has no sheets');
+                }
                 const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
                 const jsonData = XLSX.utils.sheet_to_json(firstSheet);
                 const fields = jsonData.length > 0 ? Object.keys(jsonData[0]) : [];
                 handleParsedData(jsonData, fields);
             } catch (error) {
+                console.error('Error parsing Excel:', error);
                 importStatus.innerHTML = `<p style="color: var(--danger-color);">Error parsing Excel: ${error.message}</p>`;
             }
         };
@@ -2862,7 +3310,7 @@ function addToolToComparison(tool) {
     };
     
     toolComparisons.push(toolData);
-    updateComparisonTable();
+    updateComparisonTable().catch(error => console.error('Error updating comparison table:', error));
 }
 
 function closeImportModal() {
@@ -2883,26 +3331,64 @@ function initializeReportGeneration() {
     const sendReportBtn = document.getElementById('sendReportBtn');
     const downloadReportBtn = document.getElementById('downloadReportBtn');
     
-    generateReportBtn.addEventListener('click', function() {
-        reportModal.style.display = 'block';
-    });
+    if (!generateReportBtn || !reportModal) {
+        console.error('Report generation elements not found');
+        return;
+    }
     
-    closeReportBtn.addEventListener('click', closeReportModal);
-    cancelReportBtn.addEventListener('click', closeReportModal);
+    if (generateReportBtn) {
+        generateReportBtn.addEventListener('click', function() {
+            if (reportModal) {
+                reportModal.style.display = 'block';
+            }
+        });
+    }
     
-    reportModal.addEventListener('click', function(e) {
-        if (e.target === reportModal) {
-            closeReportModal();
-        }
-    });
+    if (closeReportBtn) {
+        closeReportBtn.addEventListener('click', function() {
+            if (typeof closeReportModal === 'function') {
+                closeReportModal();
+            }
+        });
+    }
     
-    sendReportBtn.addEventListener('click', function() {
-        sendReportByEmail();
-    });
+    if (cancelReportBtn) {
+        cancelReportBtn.addEventListener('click', function() {
+            if (typeof closeReportModal === 'function') {
+                closeReportModal();
+            }
+        });
+    }
     
-    downloadReportBtn.addEventListener('click', function() {
-        downloadReportPDF();
-    });
+    if (reportModal) {
+        reportModal.addEventListener('click', function(e) {
+            if (e.target === reportModal) {
+                if (typeof closeReportModal === 'function') {
+                    closeReportModal();
+                }
+            }
+        });
+    }
+    
+    if (sendReportBtn) {
+        sendReportBtn.addEventListener('click', function() {
+            if (typeof sendReportByEmail === 'function') {
+                sendReportByEmail();
+            } else {
+                console.error('sendReportByEmail function not found');
+            }
+        });
+    }
+    
+    if (downloadReportBtn) {
+        downloadReportBtn.addEventListener('click', function() {
+            if (typeof downloadReportPDF === 'function') {
+                downloadReportPDF();
+            } else {
+                console.error('downloadReportPDF function not found');
+            }
+        });
+    }
     
     // Initialize EmailJS (you'll need to set up EmailJS service)
     // For now, we'll use a fallback method
@@ -3277,7 +3763,7 @@ function generateReportHTML() {
                     ${params.machineName ? `<tr><th>Machine Name</th><td>${params.machineName}</td></tr>` : ''}
                     ${params.applicationType ? `<tr><th>Application Type</th><td>${params.applicationType}</td></tr>` : ''}
                     ${params.customerContact ? `<tr><th>Customer Contact Person</th><td>${params.customerContact}</td></tr>` : ''}
-                    ${params.expertName ? `<tr><th>Expert Name</th><td>${params.expertName}</td></tr>` : ''}
+                    ${params.expertName ? `<tr><th>Our Expert Name</th><td>${params.expertName}</td></tr>` : ''}
                     ${params.batchSize > 1 ? `<tr><th>Batch/Lot Size</th><td>${params.batchSize} parts</td></tr>` : ''}
                     ${params.theoreticalPartWorktime ? `<tr><th>Theoretical Part Worktime</th><td>${params.theoreticalPartWorktime} min</td></tr>` : ''}
                     ${params.machineWorkhourCost ? `<tr><th>Machine Workhour Cost</th><td>${formatCurrency(params.machineWorkhourCost)}/hour</td></tr>` : ''}
@@ -3637,7 +4123,7 @@ function generateReportText() {
 ═══════════════════════════════════════════════════════════════════════════════
 1. PROJECT INFORMATION
 ═══════════════════════════════════════════════════════════════════════════════
-${params.clientName ? `Client Name: ${params.clientName}\n` : ''}${params.projectName ? `Project Name: ${params.projectName}\n` : ''}${params.partName ? `Part/Detail Name: ${params.partName}\n` : ''}${params.machineName ? `Machine Name: ${params.machineName}\n` : ''}${params.applicationType ? `Application Type: ${params.applicationType}\n` : ''}${params.customerContact ? `Customer Contact: ${params.customerContact}\n` : ''}${params.expertName ? `Expert Name: ${params.expertName}\n` : ''}${params.batchSize > 1 ? `Batch/Lot Size: ${params.batchSize} parts\n` : ''}${params.theoreticalPartWorktime ? `Theoretical Part Worktime: ${params.theoreticalPartWorktime} min\n` : ''}${params.machineWorkhourCost ? `Machine Workhour Cost: ${formatCurrency(params.machineWorkhourCost)}/hour\n` : ''}${params.machineStopCost ? `Machine Stop/Downtime Cost: ${formatCurrency(params.machineStopCost)}/hour\n` : ''}
+${params.clientName ? `Client Name: ${params.clientName}\n` : ''}${params.projectName ? `Project Name: ${params.projectName}\n` : ''}${params.partName ? `Part/Detail Name: ${params.partName}\n` : ''}${params.machineName ? `Machine Name: ${params.machineName}\n` : ''}${params.applicationType ? `Application Type: ${params.applicationType}\n` : ''}${params.customerContact ? `Customer Contact: ${params.customerContact}\n` : ''}${params.expertName ? `Our Expert Name: ${params.expertName}\n` : ''}${params.batchSize > 1 ? `Batch/Lot Size: ${params.batchSize} parts\n` : ''}${params.theoreticalPartWorktime ? `Theoretical Part Worktime: ${params.theoreticalPartWorktime} min\n` : ''}${params.machineWorkhourCost ? `Machine Workhour Cost: ${formatCurrency(params.machineWorkhourCost)}/hour\n` : ''}${params.machineStopCost ? `Machine Stop/Downtime Cost: ${formatCurrency(params.machineStopCost)}/hour\n` : ''}
 ${params.partsPerBatch || params.partsPerYear || params.annualSolutions ? `
 ═══════════════════════════════════════════════════════════════
 PRODUCTION & COST PARAMETERS
@@ -3916,6 +4402,10 @@ async function downloadReportPDF() {
     statusDiv.innerHTML = '<p style="color: var(--primary-color);">Generating PDF report...</p>';
     
     try {
+        // Load PDF libraries on demand
+        if (typeof window.loadPDFLibraries === 'function') {
+            await window.loadPDFLibraries();
+        }
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
         
@@ -4022,7 +4512,7 @@ async function downloadReportPDF() {
         if (params.machineName) { doc.text(`Machine: ${params.machineName}`, margin + 5, yPos); yPos += lineHeight; }
         if (params.applicationType) { doc.text(`Application: ${params.applicationType}`, margin + 5, yPos); yPos += lineHeight; }
         if (params.customerContact) { doc.text(`Contact: ${params.customerContact}`, margin + 5, yPos); yPos += lineHeight; }
-        if (params.expertName) { doc.text(`Expert: ${params.expertName}`, margin + 5, yPos); yPos += lineHeight; }
+        if (params.expertName) { doc.text(`Our Expert: ${params.expertName}`, margin + 5, yPos); yPos += lineHeight; }
         if (params.batchSize > 1) { doc.text(`Batch Size: ${params.batchSize} parts`, margin + 5, yPos); yPos += lineHeight; }
         if (params.theoreticalPartWorktime) { doc.text(`Theoretical Part Worktime: ${params.theoreticalPartWorktime} min`, margin + 5, yPos); yPos += lineHeight; }
         if (params.machineWorkhourCost) { doc.text(`Machine Workhour Cost: ${formatCurrency(params.machineWorkhourCost)}/hour`, margin + 5, yPos); yPos += lineHeight; }
@@ -4516,20 +5006,39 @@ document.addEventListener('DOMContentLoaded', function() {
     // Load Venten logo
     loadVentenLogo();
     
-    // Initialize photo upload
-    initializePhotoUpload();
+    // Initialize photo upload (async, but don't block)
+    setTimeout(async function() {
+        try {
+            await initializePhotoUpload();
+        } catch (error) {
+            console.error('Error initializing photo upload:', error);
+        }
+    }, 100);
     
     // Initialize machine label upload with OCR
-    initializeMachineLabelUpload();
+    setTimeout(function() {
+        initializeMachineLabelUpload();
+    }, 150);
     
-    // Initialize catalogue import
-    initializeCatalogueImport();
+    // Initialize catalogue import (async, but don't block)
+    setTimeout(async function() {
+        try {
+            await initializeCatalogueImport();
+        } catch (error) {
+            console.error('Error initializing catalogue import:', error);
+        }
+    }, 150);
     
     // Initialize report generation
     initializeReportGeneration();
     
     // Calculate button with enhanced feedback
-    document.getElementById('calculateBtn').addEventListener('click', function() {
+    const calculateBtn = document.getElementById('calculateBtn');
+    if (!calculateBtn) {
+        console.error('Calculate button not found');
+        return;
+    }
+    calculateBtn.addEventListener('click', function() {
         const button = this;
         const originalText = button.textContent;
         
@@ -4582,7 +5091,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     document.getElementById('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
                     
                     // Display results
-                    displayResults(params, costResults);
+                    displayResults(params, costResults).catch(error => {
+                        console.error('Error displaying results:', error);
+                        setButtonLoading('calculateBtn', false, originalText);
+                        showToast(`❌ Error displaying results: ${error.message}`, 'error', 5000);
+                    });
                     
                     // Show success message
                     setButtonLoading('calculateBtn', false, originalText);
@@ -4608,8 +5121,10 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     // Compare Tools button with enhanced feedback
-    document.getElementById('compareBtn').addEventListener('click', function() {
-        const button = this;
+    const compareBtn = document.getElementById('compareBtn');
+    if (compareBtn) {
+        compareBtn.addEventListener('click', function() {
+            const button = this;
         const originalText = button.textContent;
         
         try {
@@ -4650,17 +5165,16 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     // Scroll to comparison section
                     const comparisonSection = document.getElementById('comparisonSection');
-                    if (comparisonSection.style.display !== 'none') {
+                    if (comparisonSection && comparisonSection.style.display !== 'none') {
                         comparisonSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        // Highlight comparison section
+                        comparisonSection.classList.add('highlight-section');
+                        setTimeout(() => comparisonSection.classList.remove('highlight-section'), 2000);
                     }
                     
                     // Show success message
                     setButtonLoading('compareBtn', false, originalText);
                     showToast(`✅ "${toolName}" added to comparison (${toolComparisons.length} tool${toolComparisons.length > 1 ? 's' : ''})`, 'success', 3000);
-                    
-                    // Highlight comparison section
-                    comparisonSection.classList.add('highlight-section');
-                    setTimeout(() => comparisonSection.classList.remove('highlight-section'), 2000);
                     
                 } catch (error) {
                     setButtonLoading('compareBtn', false, originalText);
@@ -4674,22 +5188,28 @@ document.addEventListener('DOMContentLoaded', function() {
             showToast(`❌ Error: ${error.message}`, 'error', 5000);
             console.error('Error:', error);
         }
-    });
+        });
+    }
     
     // Clear comparison button
-    document.getElementById('clearComparisonBtn').addEventListener('click', function() {
-        if (toolComparisons.length === 0) {
-            showToast('ℹ️ No tools to clear', 'info', 2000);
-            return;
-        }
-        
-        const count = toolComparisons.length;
-        clearComparison();
-        showToast(`✅ Cleared ${count} tool${count > 1 ? 's' : ''} from comparison`, 'success', 3000);
-    });
+    const clearComparisonBtn = document.getElementById('clearComparisonBtn');
+    if (clearComparisonBtn) {
+        clearComparisonBtn.addEventListener('click', function() {
+            if (toolComparisons.length === 0) {
+                showToast('ℹ️ No tools to clear', 'info', 2000);
+                return;
+            }
+            
+            const count = toolComparisons.length;
+            clearComparison();
+            showToast(`✅ Cleared ${count} tool${count > 1 ? 's' : ''} from comparison`, 'success', 3000);
+        });
+    }
     
     // Add another tool button (also handles update when editing)
-    document.getElementById('addToolBtn').addEventListener('click', function() {
+    const addToolBtn = document.getElementById('addToolBtn');
+    if (addToolBtn) {
+        addToolBtn.addEventListener('click', function() {
         const button = this;
         const originalText = button.textContent;
         
@@ -4751,8 +5271,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     showToast(`✅ "${toolName}" added (${toolComparisons.length} tool${toolComparisons.length > 1 ? 's' : ''} total)`, 'success', 3000);
                     
                     const comparisonSection = document.getElementById('comparisonSection');
-                    comparisonSection.classList.add('highlight-section');
-                    setTimeout(() => comparisonSection.classList.remove('highlight-section'), 2000);
+                    if (comparisonSection) {
+                        comparisonSection.classList.add('highlight-section');
+                        setTimeout(() => comparisonSection.classList.remove('highlight-section'), 2000);
+                    }
                     
                 } catch (error) {
                     setButtonLoading('addToolBtn', false, originalText);
@@ -4764,33 +5286,41 @@ document.addEventListener('DOMContentLoaded', function() {
             setButtonLoading('addToolBtn', false, originalText);
             showToast(`❌ Error: ${error.message}`, 'error', 5000);
         }
-    });
+        });
+    }
     
     // Save & Clear Form button
-    document.getElementById('saveAndClearBtn').addEventListener('click', function() {
-        const button = this;
-        const originalText = button.textContent;
-        
-        try {
-            setButtonLoading('saveAndClearBtn', true, originalText);
+    const saveAndClearBtn = document.getElementById('saveAndClearBtn');
+    if (saveAndClearBtn) {
+        saveAndClearBtn.addEventListener('click', function() {
+            const button = this;
+            const originalText = button.textContent;
             
-            setTimeout(() => {
-                try {
-                    saveAndClearForm();
-                    setButtonLoading('saveAndClearBtn', false, originalText);
-                } catch (error) {
-                    setButtonLoading('saveAndClearBtn', false, originalText);
-                    showToast(`❌ Error: ${error.message}`, 'error', 5000);
-                    console.error('Save & Clear error:', error);
-                }
-            }, 300);
-            
-        } catch (error) {
-            setButtonLoading('saveAndClearBtn', false, originalText);
-            showToast(`❌ Error: ${error.message}`, 'error', 5000);
-            console.error('Error:', error);
-        }
-    });
+            try {
+                setButtonLoading('saveAndClearBtn', true, originalText);
+                
+                setTimeout(() => {
+                    try {
+                        if (typeof saveAndClearForm === 'function') {
+                            saveAndClearForm();
+                        } else {
+                            console.error('saveAndClearForm function not found');
+                        }
+                        setButtonLoading('saveAndClearBtn', false, originalText);
+                    } catch (error) {
+                        setButtonLoading('saveAndClearBtn', false, originalText);
+                        showToast(`❌ Error: ${error.message}`, 'error', 5000);
+                        console.error('Save & Clear error:', error);
+                    }
+                }, 300);
+                
+            } catch (error) {
+                setButtonLoading('saveAndClearBtn', false, originalText);
+                showToast(`❌ Error: ${error.message}`, 'error', 5000);
+                console.error('Error:', error);
+            }
+        });
+    }
     
     // Remove error highlights on input
     const inputs = document.querySelectorAll('input, select');
