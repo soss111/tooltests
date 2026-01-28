@@ -302,6 +302,481 @@ footer {
     font-size: 0.9rem;
 }
 
+footer a {
+    color: white;
+    text-decoration: none;
+    transition: opacity 0.2s;
+}
+
+footer a:hover {
+    opacity: 0.8;
+    text-decoration: underline;
+}
+
+footer img {
+    filter: brightness(0) invert(1);
+}
+
+footer img:hover {
+    opacity: 1;
+}
+
+/* Technical Engineering Styles */
+.technical-specs,
+.engineering-formulas {
+    margin-top: 25px;
+    padding-top: 25px;
+    border-top: 2px solid var(--border-color);
+}
+
+.technical-specs h3,
+.engineering-formulas h3 {
+    color: var(--primary-color);
+    margin-bottom: 15px;
+    font-size: 1.2rem;
+    font-weight: 700;
+}
+
+.technical-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+    font-size: 0.9rem;
+    background: var(--card-bg);
+}
+
+.technical-table th {
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    color: white;
+    padding: 12px;
+    text-align: left;
+    font-weight: 600;
+    border: 1px solid #1d4ed8;
+}
+
+.technical-table td {
+    padding: 10px 12px;
+    border: 1px solid var(--border-color);
+    background: var(--card-bg);
+}
+
+.technical-table tr:nth-child(even) td {
+    background: #f8fafc;
+}
+
+.technical-table tr:hover td {
+    background: #e0f2fe;
+}
+
+.technical-table td:nth-child(2) {
+    font-family: 'Courier New', monospace;
+    font-weight: 600;
+    color: var(--primary-color);
+}
+
+.technical-table td:nth-child(3) {
+    font-family: 'Courier New', monospace;
+    text-align: right;
+    font-weight: 600;
+}
+
+.formula-section {
+    background: #f8fafc;
+    padding: 15px;
+    margin-bottom: 15px;
+    border-radius: 8px;
+    border-left: 4px solid var(--primary-color);
+}
+
+.formula-section h4 {
+    color: var(--primary-color);
+    margin-bottom: 10px;
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.formula {
+    font-family: 'Courier New', monospace;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    padding: 10px;
+    background: white;
+    border-radius: 4px;
+    margin: 8px 0;
+    text-align: center;
+    border: 1px solid var(--border-color);
+}
+
+.formula sub {
+    font-size: 0.8em;
+    vertical-align: sub;
+}
+
+.formula sup {
+    font-size: 0.8em;
+    vertical-align: super;
+}
+
+.formula-desc {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-top: 5px;
+    font-style: italic;
+}
+
+.result-item h3 {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+
+.result-value {
+    font-family: 'Courier New', monospace;
+    font-weight: 700;
+}
+
+.result-description {
+    font-family: 'Courier New', monospace;
+    font-size: 0.85rem;
+}
+
+/* Engineering-focused input styling */
+.form-group label sub {
+    font-size: 0.75em;
+    vertical-align: sub;
+    color: var(--primary-color);
+    font-weight: 600;
+}
+
+.form-group small {
+    font-family: 'Courier New', monospace;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+/* Technical badge styling */
+.metric-badge {
+    font-family: 'Courier New', monospace;
+    font-weight: 700;
+}
+
+/* Enhanced card styling for technical sections */
+.card {
+    border: 1px solid var(--border-color);
+}
+
+.card h2 {
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    font-size: 1.3rem;
+}
+
+.section-divider {
+    margin: 25px 0 15px 0;
+    padding-bottom: 10px;
+    border-bottom: 2px solid var(--border-color);
+}
+
+.section-divider h3 {
+    color: var(--primary-color);
+    font-size: 1rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin: 0;
+}
+
+/* Technical data display */
+.result-label {
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.85rem;
+    letter-spacing: 0.5px;
+    color: var(--text-secondary);
+}
+
+.result-label sub {
+    font-size: 0.7em;
+    vertical-align: sub;
+}
+
+/* Chart Containers */
+.chart-container {
+    margin-top: 25px;
+    padding-top: 25px;
+    border-top: 2px solid var(--border-color);
+}
+
+.chart-container h3 {
+    color: var(--primary-color);
+    margin-bottom: 15px;
+    font-size: 1.2rem;
+    font-weight: 700;
+}
+
+.chart-container canvas {
+    max-height: 400px;
+}
+
+.comparison-charts {
+    margin-top: 25px;
+    padding-top: 25px;
+    border-top: 2px solid var(--border-color);
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+}
+
+.chart-wrapper {
+    background: var(--bg-color);
+    padding: 15px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+}
+
+.chart-wrapper h3 {
+    color: var(--primary-color);
+    font-size: 1rem;
+    margin-bottom: 10px;
+    font-weight: 600;
+}
+
+.chart-wrapper canvas {
+    max-height: 300px;
+}
+
+/* Savings Summary */
+.savings-summary {
+    margin-top: 25px;
+    padding-top: 25px;
+    border-top: 2px solid var(--border-color);
+}
+
+.savings-summary h3 {
+    color: var(--secondary-color);
+    margin-bottom: 15px;
+    font-size: 1.2rem;
+    font-weight: 700;
+}
+
+.savings-item {
+    background: var(--bg-color);
+    padding: 15px;
+    margin-bottom: 15px;
+    border-radius: 8px;
+    border-left: 4px solid var(--primary-color);
+}
+
+.savings-item.best-tool {
+    border-left-color: var(--secondary-color);
+    background: #f0fdf4;
+}
+
+.savings-item.worst-tool {
+    border-left-color: var(--danger-color);
+    background: #fef2f2;
+}
+
+.savings-item.savings-highlight {
+    border-left-color: var(--secondary-color);
+    background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+    border-width: 3px;
+}
+
+.savings-item.annual-savings {
+    border-left-color: #f59e0b;
+    background: #fffbeb;
+}
+
+.savings-label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 5px;
+}
+
+.savings-value {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 5px;
+}
+
+.savings-value-large {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--secondary-color);
+    margin: 10px 0;
+    font-family: 'Courier New', monospace;
+}
+
+.savings-cost {
+    font-size: 1rem;
+    color: var(--text-secondary);
+    font-family: 'Courier New', monospace;
+}
+
+.savings-details {
+    margin-top: 10px;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    line-height: 1.8;
+}
+
+.savings-details div {
+    margin-bottom: 5px;
+}
+
+/* Photo Upload & Crop Styles */
+#photoPreviewContainer {
+    position: relative;
+}
+
+#photoPreviewImg {
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+#photoPreviewImg:hover {
+    opacity: 0.9;
+}
+
+/* Modal Styles */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    overflow: auto;
+}
+
+.modal-content {
+    background-color: var(--card-bg);
+    margin: 5% auto;
+    padding: 0;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 800px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    animation: modalSlideIn 0.3s ease-out;
+}
+
+@keyframes modalSlideIn {
+    from {
+        transform: translateY(-50px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 25px;
+    border-bottom: 2px solid var(--border-color);
+}
+
+.modal-header h3 {
+    margin: 0;
+    color: var(--primary-color);
+    font-size: 1.3rem;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 2rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s;
+}
+
+.modal-close:hover {
+    color: var(--danger-color);
+}
+
+.modal-body {
+    padding: 25px;
+    max-height: 70vh;
+    overflow-y: auto;
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 20px 25px;
+    border-top: 2px solid var(--border-color);
+}
+
+.modal-footer button {
+    margin: 0;
+    width: auto;
+    min-width: 120px;
+}
+
+#cropContainer {
+    background: #f8fafc;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.tool-photo-display {
+    max-width: 200px;
+    max-height: 200px;
+    border-radius: 8px;
+    border: 2px solid var(--border-color);
+    margin: 10px 0;
+    object-fit: cover;
+}
+
+.modal-body textarea {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 1rem;
+    font-family: inherit;
+    resize: vertical;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.modal-body textarea:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.modal-body label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+}
+
+.modal-body input[type="checkbox"] {
+    width: auto;
+    cursor: pointer;
+}
+
 @media (max-width: 768px) {
     .calculator-grid {
         grid-template-columns: 1fr;

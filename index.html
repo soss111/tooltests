@@ -5,19 +5,217 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CNC Tool Selection Calculator</title>
     <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cropperjs@1.5.13/dist/cropper.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/cropperjs@1.5.13/dist/cropper.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/exif-js@2.3.0/exif.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/emailjs-com@3.2.0/dist/email.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>🔧 CNC Tool Selection Calculator</h1>
-            <p class="subtitle">Choose the right and most cost-effective tool for your CNC machine</p>
-            <p class="iso-reference">Based on ISO 8688-2:1989 principles</p>
+            <h1>⚙️ CNC Tool Selection & Engineering Analysis System</h1>
+            <p class="subtitle">Technical Tool Life Prediction & Cost Optimization Calculator</p>
+            <p class="iso-reference">ISO 8688-2:1989 | Taylor's Tool Life Equation | Engineering Standards</p>
         </header>
 
         <div class="calculator-grid">
+            <!-- Client & Project Information Section -->
+            <div class="card client-section">
+                <h2>Client & Project Information</h2>
+                
+                <div class="form-group">
+                    <label for="clientName">Client Name</label>
+                    <input type="text" id="clientName" placeholder="Enter client name">
+                </div>
+
+                <div class="form-group">
+                    <label for="projectName">Project Name</label>
+                    <input type="text" id="projectName" placeholder="Enter project name">
+                </div>
+
+                <div class="form-group">
+                    <label for="customerContact">Customer Contact Person</label>
+                    <input type="text" id="customerContact" placeholder="Enter contact person name">
+                </div>
+
+                <div class="form-group">
+                    <label for="machineName">Machine Name</label>
+                    <input type="text" id="machineName" placeholder="Enter CNC machine name/model">
+                </div>
+
+                <div class="form-group">
+                    <label for="partName">Part/Detail Name</label>
+                    <input type="text" id="partName" placeholder="Enter part or detail name">
+                </div>
+
+                <div class="form-group">
+                    <label for="applicationType">Application Type</label>
+                    <select id="applicationType">
+                        <option value="roughing">Roughing</option>
+                        <option value="finishing">Finishing</option>
+                        <option value="semiFinishing">Semi-Finishing</option>
+                        <option value="contouring">Contouring</option>
+                        <option value="pocketing">Pocketing</option>
+                        <option value="drilling">Drilling</option>
+                        <option value="threading">Threading</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="batchSize">Batch/Lot Size</label>
+                    <input type="number" id="batchSize" min="1" value="1" step="1" placeholder="Number of parts in batch">
+                </div>
+            </div>
+
             <!-- Input Section -->
             <div class="card input-section">
                 <h2>Tool & Material Parameters</h2>
+                
+                <div class="section-divider">
+                    <h3>Tool Selection</h3>
+                </div>
+
+                <div class="form-group">
+                    <label>Import from Catalogue</label>
+                    <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                        <input type="file" id="catalogueFile" accept=".csv,.json,.xlsx,.xls" style="display: none;">
+                        <button type="button" id="importCatalogueBtn" class="btn-outline" style="flex: 1; margin: 0;">
+                            📥 Import Catalogue
+                        </button>
+                        <button type="button" id="downloadTemplateBtn" class="btn-outline" style="flex: 1; margin: 0;">
+                            📋 Download Template
+                        </button>
+                    </div>
+                    <small style="display: block; margin-top: 5px;">Supports CSV, JSON, and Excel formats</small>
+                </div>
+
+                <!-- Catalogue Import Modal -->
+                <div id="catalogueImportModal" class="modal" style="display: none;">
+                    <div class="modal-content" style="max-width: 1200px;">
+                        <div class="modal-header">
+                            <h3>Import Tools from Catalogue</h3>
+                            <button type="button" class="modal-close" id="closeImportModal">&times;</button>
+                        </div>
+                        <div class="modal-body">
+                            <div id="importMappingSection" style="display: none;">
+                                <h4>Field Mapping</h4>
+                                <p style="color: var(--text-secondary); margin-bottom: 15px;">Map catalogue columns to calculator fields:</p>
+                                <div id="fieldMappingContainer"></div>
+                            </div>
+                            <div id="importPreviewSection" style="display: none;">
+                                <h4>Preview Imported Tools</h4>
+                                <div id="importPreviewContainer" style="max-height: 400px; overflow-y: auto; margin-top: 15px;"></div>
+                            </div>
+                            <div id="importStatus" style="margin-top: 15px;"></div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" id="applyMappingBtn" class="btn-primary" style="display: none;">Apply Mapping</button>
+                            <button type="button" id="importSelectedBtn" class="btn-primary" style="display: none;">Import Selected Tools</button>
+                            <button type="button" id="cancelImportBtn" class="btn-outline">Cancel</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="toolBrand">Brand</label>
+                    <select id="toolBrand">
+                        <option value="">Select Brand</option>
+                        <option value="kennametal">Kennametal</option>
+                        <option value="osg">OSG</option>
+                        <option value="sandvik">Sandvik Coromant</option>
+                        <option value="iscar">ISCAR</option>
+                        <option value="walter">Walter</option>
+                        <option value="seco">Seco Tools</option>
+                        <option value="mitsubishi">Mitsubishi Materials</option>
+                        <option value="kyocera">Kyocera</option>
+                        <option value="sumitomo">Sumitomo Electric</option>
+                        <option value="hanita">Hanita</option>
+                        <option value="guhring">Gühring</option>
+                        <option value="tungaloy">Tungaloy</option>
+                        <option value="ceratizit">Ceratizit</option>
+                        <option value="korloy">Korloy</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="toolType">Type</label>
+                    <select id="toolType">
+                        <option value="">Select Tool Type</option>
+                        <option value="endMill">End Mill</option>
+                        <option value="roughingEndMill">Roughing End Mill</option>
+                        <option value="finishingEndMill">Finishing End Mill</option>
+                        <option value="ballEndMill">Ball End Mill</option>
+                        <option value="cornerRadiusEndMill">Corner Radius End Mill</option>
+                        <option value="chamferEndMill">Chamfer End Mill</option>
+                        <option value="faceMill">Face Mill</option>
+                        <option value="slotMill">Slot Mill</option>
+                        <option value="drill">Drill</option>
+                        <option value="reamer">Reamer</option>
+                        <option value="tap">Tap</option>
+                        <option value="boringTool">Boring Tool</option>
+                        <option value="threadMill">Thread Mill</option>
+                        <option value="insert">Insert</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="toolNameModel">Name/Model</label>
+                    <input type="text" id="toolNameModel" placeholder="e.g., KOR5, EXOCARB WXL">
+                </div>
+
+                <div class="form-group">
+                    <label for="toolProductCode">Product Code</label>
+                    <input type="text" id="toolProductCode" placeholder="e.g., KOR5-1000-12-4FL">
+                </div>
+
+                <div class="form-group">
+                    <label for="toolPhoto">Tool Photo</label>
+                    <input type="file" id="toolPhoto" accept="image/*" style="display: none;">
+                    <button type="button" id="uploadPhotoBtn" class="btn-outline" style="width: 100%; margin-top: 0;">
+                        📷 Upload Tool Photo
+                    </button>
+                    <div id="photoPreviewContainer" style="display: none; margin-top: 15px;">
+                        <div id="photoPreview" style="max-width: 100%; max-height: 300px; overflow: hidden; border: 2px solid var(--border-color); border-radius: 8px;">
+                            <img id="photoPreviewImg" style="max-width: 100%; display: block;">
+                        </div>
+                        <div style="margin-top: 10px; display: flex; gap: 10px;">
+                            <button type="button" id="cropPhotoBtn" class="btn-secondary" style="flex: 1; margin: 0;">✂️ Crop Photo</button>
+                            <button type="button" id="removePhotoBtn" class="btn-outline" style="flex: 1; margin: 0;">🗑️ Remove</button>
+                        </div>
+                        <div id="photoDateInfo" style="margin-top: 10px; font-size: 0.85rem; color: var(--text-secondary);"></div>
+                    </div>
+                </div>
+
+                <!-- Crop Modal -->
+                <div id="cropModal" class="modal" style="display: none;">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h3>Crop Tool Photo</h3>
+                            <button type="button" class="modal-close" id="closeCropModal">&times;</button>
+                        </div>
+                        <div class="modal-body">
+                            <div id="cropContainer" style="max-width: 100%; max-height: 500px;">
+                                <img id="cropImage" style="max-width: 100%; display: block;">
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" id="applyCropBtn" class="btn-primary">Apply Crop</button>
+                            <button type="button" id="cancelCropBtn" class="btn-outline">Cancel</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section-divider">
+                    <h3>Workpiece Material</h3>
+                </div>
                 
                 <div class="form-group">
                     <label for="workpieceMaterial">Workpiece Material</label>
@@ -29,6 +227,10 @@
                         <option value="titanium">Titanium</option>
                         <option value="brass">Brass</option>
                     </select>
+                </div>
+
+                <div class="section-divider">
+                    <h3>Tool Geometry</h3>
                 </div>
 
                 <div class="form-group">
@@ -59,38 +261,75 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="cuttingSpeed">Cutting Speed (m/min)</label>
+                    <label for="cuttingSpeed">Cutting Speed, V<sub>c</sub> (m/min)</label>
                     <input type="number" id="cuttingSpeed" min="1" max="1000" value="100" step="1">
+                    <small>Surface cutting speed (V<sub>c</sub> = π × D × n / 1000)</small>
                 </div>
 
                 <div class="form-group">
-                    <label for="feedRate">Feed Rate (mm/tooth)</label>
+                    <label for="feedRate">Feed per Tooth, f<sub>z</sub> (mm/tooth)</label>
                     <input type="number" id="feedRate" min="0.01" max="5" value="0.1" step="0.01">
+                    <small>Chip load per tooth</small>
                 </div>
 
                 <div class="form-group">
-                    <label for="depthOfCut">Depth of Cut (mm)</label>
+                    <label for="depthOfCut">Axial Depth of Cut, a<sub>p</sub> (mm)</label>
                     <input type="number" id="depthOfCut" min="0.1" max="50" value="2" step="0.1">
+                    <small>Depth in Z-axis direction</small>
                 </div>
 
                 <div class="form-group">
-                    <label for="widthOfCut">Width of Cut (mm)</label>
+                    <label for="widthOfCut">Radial Width of Cut, a<sub>e</sub> (mm)</label>
                     <input type="number" id="widthOfCut" min="0.1" max="100" value="5" step="0.1">
+                    <small>Stepover/width in XY-plane</small>
                 </div>
 
                 <div class="form-group">
-                    <label for="numberOfTeeth">Number of Teeth/Flutes</label>
+                    <label for="numberOfTeeth">Number of Teeth/Flutes, Z</label>
                     <input type="number" id="numberOfTeeth" min="1" max="20" value="4" step="1">
+                    <small>Number of cutting edges</small>
                 </div>
 
                 <div class="form-group">
-                    <label for="toolCost">Tool Cost (€)</label>
-                    <input type="number" id="toolCost" min="1" max="10000" value="50" step="1">
+                    <label for="helixAngle">Helix Angle, β (°)</label>
+                    <input type="number" id="helixAngle" min="0" max="60" value="30" step="1">
+                    <small>Helix angle of cutting edges</small>
                 </div>
 
                 <div class="form-group">
-                    <label for="machiningTime">Expected Machining Time per Part (min)</label>
+                    <label for="rakeAngle">Rake Angle, γ (°)</label>
+                    <input type="number" id="rakeAngle" min="-20" max="30" value="5" step="1">
+                    <small>Tool rake angle</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="materialHardness">Workpiece Hardness, HRC</label>
+                    <input type="number" id="materialHardness" min="0" max="70" value="30" step="1">
+                    <small>Material hardness (Rockwell C scale)</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="processingTime">Processing Time - Cutting Time, t<sub>c</sub> (min)</label>
+                    <input type="number" id="processingTime" min="0.1" max="1000" value="10" step="0.1">
+                    <small>Actual cutting time excluding tool changes</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="toolChangeCost">Tool Change Cost (€)</label>
+                    <input type="number" id="toolChangeCost" min="0" max="1000" value="5" step="0.1">
+                    <small>Cost per tool change (includes downtime, labor, etc.)</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="toolChangeTime">Tool Change Time (min)</label>
+                    <input type="number" id="toolChangeTime" min="0" max="60" value="2" step="0.1">
+                    <small>Time required for one tool change</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="machiningTime">Total Machining Time per Part (min)</label>
                     <input type="number" id="machiningTime" min="0.1" max="1000" value="10" step="0.1">
+                    <small>Total time including cutting and tool changes</small>
                 </div>
 
                 <div class="form-group">
@@ -99,42 +338,158 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="toolLife">Tool Life (minutes)</label>
-                    <input type="number" id="toolLife" min="1" max="10000" value="60" step="1">
-                    <small>Leave empty to calculate based on ISO 8688-2</small>
+                    <label for="toolCost">Tool Cost, C<sub>t</sub> (€)</label>
+                    <input type="number" id="toolCost" min="1" max="10000" value="50" step="1">
+                </div>
+
+                <div class="form-group">
+                    <label for="toolRemainingCost">Tool Residual Value, C<sub>r</sub> (€)</label>
+                    <input type="number" id="toolRemainingCost" min="0" max="10000" value="0" step="1">
+                    <small>Residual value or remaining cost after use</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="toolLife">Tool Life, T (minutes)</label>
+                    <input type="number" id="toolLife" min="1" max="10000" value="" step="1">
+                    <small>Leave empty to calculate: T = C / (V<sub>c</sub><sup>n</sup>) per ISO 8688-2</small>
                 </div>
 
                 <button id="calculateBtn" class="btn-primary">Calculate Cost-Effectiveness</button>
                 <button id="compareBtn" class="btn-secondary">Compare Tools</button>
+                <button id="generateReportBtn" class="btn-secondary" style="margin-top: 10px;">📄 Generate & Send Report</button>
             </div>
 
             <!-- Results Section -->
             <div class="card results-section">
-                <h2>Results & Recommendations</h2>
+                <h2>Engineering Analysis & Results</h2>
                 
                 <div id="results" class="results-container">
                     <div class="result-placeholder">
-                        <p>Enter parameters and click "Calculate" to see results</p>
+                        <p>Enter parameters and click "Calculate" to see engineering analysis</p>
                     </div>
                 </div>
 
+                <!-- Technical Specifications -->
+                <div id="technicalSpecs" class="technical-specs" style="display: none;">
+                    <h3>📐 Technical Specifications</h3>
+                    <div id="technicalSpecsContent"></div>
+                </div>
+
+                <!-- Engineering Formulas -->
+                <div id="engineeringFormulas" class="engineering-formulas" style="display: none;">
+                    <h3>🔬 Engineering Calculations</h3>
+                    <div id="engineeringFormulasContent"></div>
+                </div>
+
                 <div id="recommendations" class="recommendations-container" style="display: none;">
-                    <h3>💡 Recommendations</h3>
+                    <h3>💡 Engineering Recommendations</h3>
                     <div id="recommendationsContent"></div>
+                </div>
+
+                <!-- Tool Life Visualization -->
+                <div id="toolLifeChart" class="chart-container" style="display: none;">
+                    <h3>📊 Tool Life Visualization</h3>
+                    <canvas id="toolLifeChartCanvas"></canvas>
+                </div>
+
+                <!-- Cost Savings Visualization -->
+                <div id="costSavingsChart" class="chart-container" style="display: none;">
+                    <h3>💰 Cost Savings Analysis</h3>
+                    <canvas id="costSavingsChartCanvas"></canvas>
                 </div>
             </div>
 
             <!-- Comparison Section -->
             <div class="card comparison-section" id="comparisonSection" style="display: none;">
-                <h2>Tool Comparison</h2>
+                <h2>Tool Comparison & Savings Analysis</h2>
                 <div id="comparisonResults"></div>
+                
+                <!-- Savings Summary -->
+                <div id="savingsSummary" class="savings-summary" style="display: none;">
+                    <h3>💵 Potential Savings</h3>
+                    <div id="savingsSummaryContent"></div>
+                </div>
+
+                <!-- Comparison Charts -->
+                <div id="comparisonCharts" class="comparison-charts" style="display: none;">
+                    <div class="chart-wrapper">
+                        <h3>📈 Tool Life Comparison</h3>
+                        <canvas id="comparisonToolLifeChart"></canvas>
+                    </div>
+                    <div class="chart-wrapper">
+                        <h3>💰 Cost per Part Comparison</h3>
+                        <canvas id="comparisonCostChart"></canvas>
+                    </div>
+                    <div class="chart-wrapper">
+                        <h3>⚡ Efficiency Metrics</h3>
+                        <canvas id="comparisonEfficiencyChart"></canvas>
+                    </div>
+                </div>
+
                 <button id="addToolBtn" class="btn-secondary">Add Another Tool</button>
                 <button id="clearComparisonBtn" class="btn-outline">Clear Comparison</button>
             </div>
         </div>
 
+        <!-- Report Generation Modal -->
+        <div id="reportModal" class="modal" style="display: none;">
+            <div class="modal-content" style="max-width: 600px;">
+                <div class="modal-header">
+                    <h3>Generate & Send Report</h3>
+                    <button type="button" class="modal-close" id="closeReportModal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="reportEmail">Recipient Email</label>
+                        <input type="email" id="reportEmail" placeholder="recipient@example.com" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="reportSubject">Email Subject</label>
+                        <input type="text" id="reportSubject" placeholder="CNC Tool Selection Report" value="CNC Tool Selection Report">
+                    </div>
+                    <div class="form-group">
+                        <label for="reportMessage">Additional Message (Optional)</label>
+                        <textarea id="reportMessage" rows="4" placeholder="Add any additional notes or comments..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="includeCharts" checked> Include Charts & Visualizations
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="includeComparison" checked> Include Tool Comparison
+                        </label>
+                    </div>
+                    <div id="reportStatus" style="margin-top: 15px;"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" id="downloadReportBtn" class="btn-outline">📥 Download PDF</button>
+                    <button type="button" id="sendReportBtn" class="btn-primary">📧 Send Email</button>
+                    <button type="button" id="cancelReportBtn" class="btn-outline">Cancel</button>
+                </div>
+            </div>
+        </div>
+
         <footer>
-            <p>Based on ISO 8688-2:1989 - Tool life testing in milling Part 2: End milling</p>
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px;">
+                <div style="flex: 1; min-width: 200px;">
+                    <p style="margin-bottom: 10px;">Based on ISO 8688-2:1989 - Tool life testing in milling Part 2: End milling</p>
+                    <p style="font-size: 0.85rem; opacity: 0.9;">
+                        Developed by <a href="mailto:laurisoosaar@gmail.com" style="color: white; text-decoration: underline;">Yrgel</a>
+                    </p>
+                </div>
+                <div style="flex: 1; text-align: right; min-width: 200px;">
+                    <a href="https://www.venten.ee/" target="_blank" rel="noopener noreferrer" style="display: inline-block; text-decoration: none;">
+                        <img id="ventenLogo" 
+                             src="https://www.venten.ee/wp-content/themes/venten/images/logo.png" 
+                             alt="Venten Logo" 
+                             style="max-height: 50px; width: auto; opacity: 0.9; transition: opacity 0.2s; filter: brightness(0) invert(1);"
+                             onerror="this.style.display='none'; document.getElementById('ventenLogoText').style.display='inline-block';">
+                        <span id="ventenLogoText" style="display: none; color: white; font-weight: 600; font-size: 1.2rem; letter-spacing: 2px;">VENTEN</span>
+                    </a>
+                </div>
+            </div>
         </footer>
     </div>
 
