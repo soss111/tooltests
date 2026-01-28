@@ -1028,6 +1028,24 @@ footer img:hover {
     footer {
         padding: 4px;
     }
+    
+    .comparison-table {
+        font-size: 0.75rem;
+    }
+    
+    .comparison-table th,
+    .comparison-table td {
+        padding: 4px 3px;
+        font-size: 0.7rem;
+    }
+    
+    .comparison-charts {
+        grid-template-columns: 1fr;
+    }
+    
+    .chart-wrapper canvas {
+        max-height: min(180px, 30vh);
+    }
 }
 
 @media (max-width: 480px) {
