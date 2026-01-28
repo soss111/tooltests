@@ -83,16 +83,16 @@
 
                 <div class="form-group">
                     <label>Import from Catalogue</label>
-                    <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                    <div style="display: flex; gap: 6px; margin-bottom: 6px;">
                         <input type="file" id="catalogueFile" accept=".csv,.json,.xlsx,.xls" style="display: none;">
-                        <button type="button" id="importCatalogueBtn" class="btn-outline" style="flex: 1; margin: 0;">
-                            📥 Import Catalogue
+                        <button type="button" id="importCatalogueBtn" class="btn-outline" style="flex: 1; margin: 0; padding: 8px; font-size: 0.85rem;">
+                            📥 Import
                         </button>
-                        <button type="button" id="downloadTemplateBtn" class="btn-outline" style="flex: 1; margin: 0;">
-                            📋 Download Template
+                        <button type="button" id="downloadTemplateBtn" class="btn-outline" style="flex: 1; margin: 0; padding: 8px; font-size: 0.85rem;">
+                            📋 Template
                         </button>
                     </div>
-                    <small style="display: block; margin-top: 5px;">Supports CSV, JSON, and Excel formats</small>
+                    <small style="display: block; margin-top: 3px; font-size: 0.75rem;">CSV, JSON, Excel</small>
                 </div>
 
                 <!-- Catalogue Import Modal -->
@@ -182,15 +182,15 @@
                     <button type="button" id="uploadPhotoBtn" class="btn-outline" style="width: 100%; margin-top: 0;">
                         📷 Upload Tool Photo
                     </button>
-                    <div id="photoPreviewContainer" style="display: none; margin-top: 15px;">
-                        <div id="photoPreview" style="max-width: 100%; max-height: 300px; overflow: hidden; border: 2px solid var(--border-color); border-radius: 8px;">
+                    <div id="photoPreviewContainer" style="display: none; margin-top: 8px;">
+                        <div id="photoPreview" style="max-width: 100%; max-height: 200px; overflow: hidden; border: 2px solid var(--border-color); border-radius: 6px;">
                             <img id="photoPreviewImg" style="max-width: 100%; display: block;">
                         </div>
-                        <div style="margin-top: 10px; display: flex; gap: 10px;">
-                            <button type="button" id="cropPhotoBtn" class="btn-secondary" style="flex: 1; margin: 0;">✂️ Crop Photo</button>
-                            <button type="button" id="removePhotoBtn" class="btn-outline" style="flex: 1; margin: 0;">🗑️ Remove</button>
+                        <div style="margin-top: 6px; display: flex; gap: 6px;">
+                            <button type="button" id="cropPhotoBtn" class="btn-secondary" style="flex: 1; margin: 0; padding: 8px; font-size: 0.85rem;">✂️ Crop</button>
+                            <button type="button" id="removePhotoBtn" class="btn-outline" style="flex: 1; margin: 0; padding: 8px; font-size: 0.85rem;">🗑️ Remove</button>
                         </div>
-                        <div id="photoDateInfo" style="margin-top: 10px; font-size: 0.85rem; color: var(--text-secondary);"></div>
+                        <div id="photoDateInfo" style="margin-top: 6px; font-size: 0.75rem; color: var(--text-secondary);"></div>
                     </div>
                 </div>
 
@@ -354,9 +354,9 @@
                     <small>Leave empty to calculate: T = C / (V<sub>c</sub><sup>n</sup>) per ISO 8688-2</small>
                 </div>
 
-                <button id="calculateBtn" class="btn-primary">Calculate Cost-Effectiveness</button>
+                <button id="calculateBtn" class="btn-primary">Calculate</button>
                 <button id="compareBtn" class="btn-secondary">Compare Tools</button>
-                <button id="generateReportBtn" class="btn-secondary" style="margin-top: 10px;">📄 Generate & Send Report</button>
+                <button id="generateReportBtn" class="btn-secondary" style="margin-top: 6px; padding: 8px; font-size: 0.85rem;">📄 Generate Report</button>
             </div>
 
             <!-- Results Section -->
